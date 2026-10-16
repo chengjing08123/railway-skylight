@@ -4,11 +4,8 @@ server:
 spring:
   application:
     name: skylight-server
-  datasource:
-    driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/railway_skylight?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
-    username: root
-    password: ####    # ← 改成你的 MySQL 密码
+  profiles:
+    active: dev    # 默认激活 dev 环境；数据库密码在 application-dev.yml（已 gitignore，不入库）
 
 mybatis:
   mapper-locations: classpath:mapper/*.xml          # Mapper XML 位置（后面会建）

@@ -1,0 +1,8 @@
+# 模板：复制本文件并重命名为 application-dev.yml，填入你的真实数据库密码。
+# application-dev.yml 已被 .gitignore 忽略，不会被推送到 GitHub。
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/railway_skylight?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: root
+    password: 你的密码
