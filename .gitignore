@@ -1,0 +1,38 @@
+# ========== 1. 敏感配置文件（你当前必须加的核心项） ==========
+application-dev.yml
+application-local.yml
+.env
+.env.local
+
+# ========== 2. Java 编译与构建产物 ==========
+target/
+out/
+build/
+*.class
+*.jar
+*.war
+*.ear
+
+# ========== 3. IDE 编辑器配置文件 ==========
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+.settings/
+.project
+.classpath
+
+# ========== 4. 日志与临时文件 ==========
+logs/
+*.log
+*.tmp
+*.bak
+
+# ========== 5. 系统隐藏文件 ==========
+.DS_Store
+Thumbs.db
+
+# ========== 6. Maven/Gradle 本地缓存 ==========
+.mvn/
+.gradle/
