@@ -24,7 +24,7 @@ railway-skylight/               父工程（pom）
 
 ## 快速开始
 
-1. **配数据库**：改 `skylight-server/src/main/resources/application.yml` 里的 `password` 为你的 MySQL 密码；
+1. **配数据库**：复制 `application-dev.yml.example` 为 `application-dev.yml`，填入你的 MySQL 密码（该文件已 gitignore，不会提交）；
 2. **建库建表**：执行 `skylight-server/src/main/resources/db/schema.sql`；
 3. **启动**：IDEA 里运行 `SkylightApplication`。
 
