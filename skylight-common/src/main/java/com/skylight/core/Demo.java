@@ -5,10 +5,11 @@ import com.skylight.entity.Skylight;
 import com.skylight.entity.TaskDependency;
 import com.skylight.entity.WorkTask;
 
+import java.time.LocalTime;
 import java.util.*;
 
 /**
- * 演示入口：用「萍乡工务段 2026-09-23 计划」的真实冲突样例 + 少量构造样例，
+ * 演示入口：用「工务段 2026-09-23 计划」的真实冲突样例 + 少量构造样例，
  * 跑一遍六类冲突检测，验证核心算法。
  *
  * 在 IDEA 里直接右键 Run 即可，或在命令行：
@@ -17,10 +18,9 @@ import java.util.*;
  */
 public class Demo {
 
-    /** "HH:MM" → 当日分钟数 */
-    static int t(String hhmm) {
-        String[] p = hhmm.split(":");
-        return Integer.parseInt(p[0]) * 60 + Integer.parseInt(p[1]);
+    /** "HH:MM" → LocalTime */
+    static LocalTime t(String hhmm) {
+        return LocalTime.parse(hhmm);
     }
 
     public static void main(String[] args) {
@@ -78,7 +78,7 @@ public class Demo {
     static Skylight sky(long id, String line, String dir, String s, String e, String unit) {
         Skylight sk = new Skylight();
         sk.id = id; sk.lineName = line; sk.direction = dir;
-        sk.startMin = t(s); sk.endMin = t(e); sk.mainUnit = unit;
+        sk.startTime = t(s); sk.endTime = t(e); sk.mainUnit = unit;
         return sk;
     }
 
@@ -87,7 +87,7 @@ public class Demo {
         WorkTask w = new WorkTask();
         w.id = id; w.skylightId = skyId; w.serialNo = serial;
         w.workArea = area; w.profession = prof; w.workUnitCode = unit;
-        w.startMin = t(s); w.endMin = t(e);
+        w.startTime = t(s); w.endTime = t(e);
         return w;
     }
 
