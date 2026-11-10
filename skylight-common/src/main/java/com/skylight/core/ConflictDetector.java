@@ -9,7 +9,8 @@ import java.util.*;
 
 /**
  * 冲突检测引擎 —— 六类冲突，全部确定性算法（T1 核心，纯 Java 无框架依赖）。
- * 说明：时间统一用「当日分钟数」int 表示，区间/求和都是基础数据结构。
+ * 六类与前端契约一致：作业单元冲突 / 时长冲突 / 电气冲突 / 依赖冲突 / 配合缺失 / 天窗负责人缺失。
+ * 时间统一用 LocalTime，区间/求和都是基础数据结构。
  */
 public class ConflictDetector {
 
@@ -34,7 +35,8 @@ public class ConflictDetector {
                         "作业单元【" + unit + "】被 " + e.getValue().size()
                                 + " 个工区同时占用：" + e.getValue(),
                         "按专业主次排序，或协商更换作业单元",
-                        serials(unitTasks.get(e.getKey()))));
+                        serials(unitTasks.get(e.getKey())),
+                        "high", "2.2.10"));
             }
         }
         return out;
@@ -63,7 +65,8 @@ public class ConflictDetector {
                         "作业单元【" + unit + "】作业时长之和 " + sum + " 分钟，超过天窗时长 "
                                 + sky.duration() + " 分钟",
                         "压缩作业量，或将部分作业移出该天窗",
-                        serials(e.getValue())));
+                        serials(e.getValue()),
+                        "high", "2.2.1"));
             }
         }
         return out;
@@ -89,7 +92,8 @@ public class ConflictDetector {
                         "电气冲突",
                         "作业单元【" + e.getKey().split("#", 2)[1] + "】同时存在停电范围与带电作业需求",
                         "调整作业顺序，或改用带电作业替代方案",
-                        serials(list)));
+                        serials(list),
+                        "high", "2.2.8"));
             }
         }
         return out;
@@ -124,7 +128,8 @@ public class ConflictDetector {
                     "依赖冲突",
                     "作业依赖关系存在环（无法拓扑排序），" + (ids.size() - visited) + " 项作业陷入循环依赖",
                     "检查并断开循环依赖，明确先后顺序",
-                    "见 task_dependency 表"));
+                    "见 task_dependency 表",
+                    "high", "2.2.7"));
         }
         return out;
     }
@@ -140,20 +145,37 @@ public class ConflictDetector {
                         "配合缺失",
                         "作业需「" + c.unitName + "」配合，但未确认到场",
                         "自动补齐配合通知清单，列入待确认项",
-                        "任务#" + c.taskId));
+                        "任务#" + c.taskId,
+                        "mid", "2.2.8"));
             }
         }
         return out;
     }
 
     /**
-     * ⑥ 主次违反：作业主体与「设备归属专业决定主体」规则不符。
-     * 规则已核实：线路专业(车间)为默认主体，设备属哪专业管就谁为主体。
-     * 待接入「设备归属→专业」规则表后完全生效。
+     * ⑥ 天窗负责人缺失：同一天窗涉及多个工区，但未明确主体负责人。
      */
-    public static List<Conflict> detectSubjectViolation(List<WorkTask> tasks) {
-        // TODO: 接入「设备归属→专业」规则表后实现
-        return new ArrayList<>();
+    public static List<Conflict> detectLeaderMissing(List<WorkTask> tasks, Map<Long, Skylight> skylights) {
+        Map<Long, List<WorkTask>> bySky = new LinkedHashMap<>();
+        for (WorkTask t : tasks) {
+            bySky.computeIfAbsent(t.skylightId, k -> new ArrayList<>()).add(t);
+        }
+        List<Conflict> out = new ArrayList<>();
+        for (Map.Entry<Long, List<WorkTask>> e : bySky.entrySet()) {
+            Set<String> areas = new LinkedHashSet<>();
+            for (WorkTask t : e.getValue()) areas.add(t.workArea);
+            if (areas.size() < 2) continue;
+            Skylight sky = skylights.get(e.getKey());
+            if (sky != null && (sky.leader == null || sky.leader.isEmpty())) {
+                out.add(new Conflict(
+                        "天窗负责人缺失",
+                        "天窗涉及 " + areas.size() + " 个工区（" + areas + "），但未明确主体负责人",
+                        "明确天窗主体单位与负责人，落实到人",
+                        serials(e.getValue()),
+                        "mid", "2.2.10"));
+            }
+        }
+        return out;
     }
 
     private static String serials(List<WorkTask> tasks) {

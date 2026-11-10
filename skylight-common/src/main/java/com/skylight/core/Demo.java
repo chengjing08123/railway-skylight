@@ -59,7 +59,7 @@ public class Demo {
         all.addAll(ConflictDetector.detectElectricalConflict(tasks));
         all.addAll(ConflictDetector.detectDependencyConflict(tasks, deps));
         all.addAll(ConflictDetector.detectCoordinationMissing(Collections.singletonList(coord)));
-        all.addAll(ConflictDetector.detectSubjectViolation(tasks));
+        all.addAll(ConflictDetector.detectLeaderMissing(tasks, skies));
 
         // ===== 打印结果 =====
         System.out.println("========== 冲突检测结果（萍乡工务段真实样例） ==========");
