@@ -3,6 +3,7 @@ application-dev.yml
 application-local.yml
 .env
 .env.local
+seed.sql
 
 # ========== 2. Java 编译与构建产物 ==========
 target/
