@@ -11,7 +11,7 @@
 ## 模块结构
 
 ```
-railway-skylight/               父工程（pom）
+backend/                       后端（Maven 父工程）
 ├── skylight-common/            纯 Java：实体 + 冲突检测算法
 │   └── src/main/java/com/skylight/
 │       ├── entity/             实体（WorkTask / Skylight / Coordination / TaskDependency）
@@ -49,17 +49,19 @@ railway-skylight/               父工程（pom）
 | 电气冲突 | 停电范围 ∩ 带电需求矛盾 | 🔸 逻辑就绪，待电务/供电数据 |
 | 依赖冲突 | 依赖关系成环（Kahn 拓扑排序）| ✅ 已实现 |
 | 配合缺失 | 配合单位未确认到场 | ✅ 已实现 |
-| 主次违反 | 主体与"设备归属专业"规则不符 | 🔸 待规则表 |
+| 天窗负责人缺失 | 多工区天窗但未明确主体负责人 | ✅ 已实现 |
 
 ## REST API
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
-| GET | `/api/conflicts` | 返回全部冲突检测结果（JSON，字段 type/description/suggestion/involved）|
+| GET | `/api/conflicts` | 返回全部冲突检测结果（JSON，字段 type/description/suggestion/involved/severity/ruleRef）|
+| GET | `/api/tasks` | 作业任务（供甘特页）|
+| GET | `/api/windows` | 天窗（供甘特页）|
 
 ## 当前进度
 
 - ✅ 后端链路：实体 → Mapper → Service → Controller → REST API，真实数据端到端跑通
-- ⏳ 待做：前端看板（任务看板 + 冲突提示 + 甘特图）
+- ✅ 前端：冲突清单 / 时长甘特 / 人工确认（见 `../frontend/`）
 
-详细方案见 `../铁路综合维修天窗多专业协同智能体-合并版方案.md`。
+详细方案见 `../../铁路综合维修天窗多专业协同智能体-合并版方案.md`。
