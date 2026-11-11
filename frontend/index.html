@@ -1,0 +1,3430 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="铁路维修天窗多专业冲突核查与人工确认界面">
+  <title>天窗协同核查台</title>
+  <style>
+    /* =========================================================
+       全局样式：颜色、间距、圆角、阴影和布局尺寸均通过 CSS 变量统一管理。
+       修改主题时优先调整这里，不要把颜色重复写进各个组件。
+       ========================================================= */
+    :root {
+      color-scheme: light;
+      --bg: #f3f5f7;
+      --surface: #ffffff;
+      --surface-muted: #f8f9fa;
+      --ink: #18202a;
+      --ink-muted: #647180;
+      --line: #d9dee5;
+      --line-strong: #b6c0cb;
+      --brand: #173f5f;
+      --brand-soft: #e8f0f6;
+      --danger: #c83832;
+      --danger-soft: #fff0ef;
+      --warning: #c66c00;
+      --warning-soft: #fff6e8;
+      --caution: #d66a1f;
+      --caution-soft: #fff1e7;
+      --electric: #1769aa;
+      --electric-soft: #eaf3fb;
+      --dependency: #087f74;
+      --dependency-soft: #e8f7f4;
+      --neutral: #6d5a8c;
+      --neutral-soft: #f3effa;
+      --success: #28734f;
+      --success-soft: #eaf6ef;
+      --shadow: 0 16px 45px rgb(24 32 42 / 7%);
+      --radius: 16px;
+      --label-width: 240px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      min-width: 320px;
+      background: var(--bg);
+      scroll-behavior: smooth;
+    }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 8% 0%, rgb(23 63 95 / 8%), transparent 28rem),
+        linear-gradient(180deg, #edf1f4 0, var(--bg) 22rem);
+      font-family:
+        "Microsoft YaHei",
+        "PingFang SC",
+        "Noto Sans CJK SC",
+        "Source Han Sans SC",
+        sans-serif;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    button,
+    a {
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    button:focus-visible,
+    a:focus-visible {
+      outline: 3px solid rgb(23 105 170 / 28%);
+      outline-offset: 3px;
+    }
+
+    /* 顶部栏：品牌、三个 hash 路由入口和数据源状态。 */
+    .app-header {
+      position: sticky;
+      z-index: 20;
+      top: 0;
+      display: grid;
+      grid-template-columns: minmax(270px, 1fr) auto minmax(190px, 1fr);
+      align-items: center;
+      gap: 24px;
+      min-height: 80px;
+      padding: 14px max(24px, calc((100vw - 1360px) / 2));
+      border-bottom: 1px solid rgb(182 192 203 / 65%);
+      background: rgb(255 255 255 / 92%);
+      backdrop-filter: blur(18px);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 13px;
+      min-width: 0;
+    }
+
+    .brand-mark {
+      display: grid;
+      width: 44px;
+      height: 44px;
+      flex: 0 0 44px;
+      place-items: center;
+      border-radius: 12px;
+      color: white;
+      background: linear-gradient(145deg, #255f83, #122e46);
+      box-shadow: 0 8px 20px rgb(23 63 95 / 24%);
+    }
+
+    .brand-mark svg {
+      width: 26px;
+      height: 26px;
+    }
+
+    .brand-copy {
+      min-width: 0;
+    }
+
+    .brand-kicker {
+      margin: 0 0 2px;
+      color: var(--ink-muted);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.16em;
+    }
+
+    .brand-title {
+      overflow: hidden;
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.2;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* 主导航固定显示三个业务页面，当前页面通过 is-active 和 aria-current 标识。 */
+    .primary-nav {
+      display: flex;
+      gap: 4px;
+      padding: 4px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: var(--surface-muted);
+    }
+
+    .nav-link {
+      min-width: 92px;
+      padding: 10px 14px;
+      border-radius: 9px;
+      color: var(--ink-muted);
+      font-size: 13px;
+      font-weight: 700;
+      text-align: center;
+      text-decoration: none;
+      transition:
+        color 160ms ease,
+        background 160ms ease,
+        box-shadow 160ms ease;
+    }
+
+    .nav-link:hover {
+      color: var(--brand);
+    }
+
+    .nav-link.is-active {
+      color: var(--brand);
+      background: var(--surface);
+      box-shadow: 0 3px 12px rgb(24 32 42 / 9%);
+    }
+
+    .header-meta {
+      display: flex;
+      justify-content: flex-end;
+      min-width: 0;
+    }
+
+    .source-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      max-width: 100%;
+      padding: 8px 11px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--ink-muted);
+      background: var(--surface);
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .source-dot {
+      width: 8px;
+      height: 8px;
+      flex: 0 0 8px;
+      border-radius: 50%;
+      background: var(--success);
+      box-shadow: 0 0 0 4px var(--success-soft);
+    }
+
+    .source-pill[data-source="demo"] .source-dot {
+      background: var(--warning);
+      box-shadow: 0 0 0 4px var(--warning-soft);
+    }
+
+    /* 主内容区：三个视图共用同一宽度和垂直节奏，通过 hidden 属性切换。 */
+    .workspace {
+      width: min(1360px, calc(100% - 48px));
+      margin: 0 auto;
+      padding: 34px 0 56px;
+    }
+
+    .view[hidden] {
+      display: none;
+    }
+
+    .view {
+      animation: view-in 220ms ease both;
+    }
+
+    @keyframes view-in {
+      from {
+        opacity: 0;
+        transform: translateY(5px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .page-heading {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+
+    .eyebrow {
+      margin: 0 0 8px;
+      color: var(--brand);
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 0.14em;
+    }
+
+    .page-title {
+      margin: 0;
+      font-size: clamp(27px, 3vw, 38px);
+      line-height: 1.15;
+      letter-spacing: -0.035em;
+    }
+
+    .page-description {
+      max-width: 720px;
+      margin: 10px 0 0;
+      color: var(--ink-muted);
+      font-size: 14px;
+      line-height: 1.8;
+    }
+
+    .button {
+      display: inline-flex;
+      min-height: 40px;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 9px 15px;
+      border: 1px solid var(--line-strong);
+      border-radius: 10px;
+      color: var(--ink);
+      background: var(--surface);
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition:
+        transform 150ms ease,
+        border-color 150ms ease,
+        background 150ms ease;
+    }
+
+    .button:hover {
+      border-color: var(--brand);
+      transform: translateY(-1px);
+    }
+
+    .button:disabled {
+      cursor: wait;
+      opacity: 0.65;
+      transform: none;
+    }
+
+    .button-primary {
+      border-color: var(--brand);
+      color: white;
+      background: var(--brand);
+    }
+
+    .button-primary:hover {
+      background: #0f314c;
+    }
+
+    .button-small {
+      min-height: 34px;
+      padding: 7px 11px;
+      font-size: 12px;
+    }
+
+    /* 接口不可用或请求异常时显示的非阻断提示。 */
+    .notice {
+      display: flex;
+      align-items: flex-start;
+      gap: 11px;
+      margin: 0 0 22px;
+      padding: 13px 15px;
+      border: 1px solid #e4c998;
+      border-radius: 12px;
+      color: #684910;
+      background: #fffaf0;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .notice[hidden] {
+      display: none;
+    }
+
+    .notice-mark {
+      display: grid;
+      width: 22px;
+      height: 22px;
+      flex: 0 0 22px;
+      place-items: center;
+      border-radius: 50%;
+      color: white;
+      background: var(--warning);
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    /* 规则工具栏：提供冲突类型筛选、待确认筛选、规则目录和覆盖率。 */
+    .rule-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin: 0 0 18px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: rgb(255 255 255 / 78%);
+    }
+
+    .rule-filters {
+      display: flex;
+      min-width: 0;
+      flex-wrap: wrap;
+      gap: 7px;
+    }
+
+    .filter-chip {
+      display: inline-flex;
+      min-height: 32px;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      color: var(--ink-muted);
+      background: var(--surface);
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .filter-chip:hover {
+      border-color: var(--line-strong);
+      color: var(--ink);
+    }
+
+    .filter-chip.is-active {
+      border-color: var(--brand);
+      color: var(--brand);
+      background: var(--brand-soft);
+    }
+
+    .filter-count {
+      min-width: 18px;
+      padding: 2px 5px;
+      border-radius: 999px;
+      color: inherit;
+      background: rgb(23 63 95 / 9%);
+      font-family: "Bahnschrift", "Segoe UI", sans-serif;
+      font-size: 9px;
+      text-align: center;
+    }
+
+    .rule-tools {
+      display: flex;
+      flex: 0 0 auto;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .toggle-button[aria-pressed="true"] {
+      border-color: var(--success);
+      color: var(--success);
+      background: var(--success-soft);
+    }
+
+    .rule-coverage {
+      color: var(--ink-muted);
+      font-size: 10px;
+      white-space: nowrap;
+    }
+
+    /* 冲突概览：展示总数、主要类型数量和本地已处理数量。 */
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 22px;
+    }
+
+    .metric {
+      position: relative;
+      overflow: hidden;
+      min-height: 126px;
+      padding: 20px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+
+    .metric::after {
+      position: absolute;
+      right: -24px;
+      bottom: -32px;
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      background: var(--metric-tint, var(--brand-soft));
+      content: "";
+    }
+
+    .metric-label {
+      position: relative;
+      z-index: 1;
+      margin: 0 0 15px;
+      color: var(--ink-muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .metric-value {
+      position: relative;
+      z-index: 1;
+      margin: 0;
+      font-family: "Bahnschrift", "Segoe UI", sans-serif;
+      font-size: 34px;
+      line-height: 1;
+    }
+
+    .metric-note {
+      position: relative;
+      z-index: 1;
+      margin: 9px 0 0;
+      color: var(--ink-muted);
+      font-size: 11px;
+    }
+
+    .section-heading {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 16px;
+      margin: 28px 0 14px;
+    }
+
+    .section-title {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .section-caption {
+      margin: 0;
+      color: var(--ink-muted);
+      font-size: 12px;
+    }
+
+    /* 冲突列表：先按 type 分组，再使用卡片显示描述、建议、涉及作业和依据。 */
+    .conflict-group + .conflict-group {
+      margin-top: 28px;
+    }
+
+    .group-heading {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 0 0 12px;
+      font-size: 15px;
+    }
+
+    .group-count {
+      display: inline-grid;
+      min-width: 24px;
+      height: 24px;
+      place-items: center;
+      padding: 0 7px;
+      border-radius: 999px;
+      color: var(--ink-muted);
+      background: #e9edf1;
+      font-size: 11px;
+    }
+
+    .conflict-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .conflict-card {
+      --type-color: var(--brand);
+      --type-soft: var(--brand-soft);
+      position: relative;
+      overflow: hidden;
+      padding: 20px 20px 18px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+
+    .conflict-card[data-open-confirm-key] {
+      cursor: pointer;
+      transition:
+        transform 160ms ease,
+        border-color 160ms ease,
+        box-shadow 160ms ease;
+    }
+
+    .conflict-card[data-open-confirm-key]:hover {
+      border-color: var(--type-color);
+      box-shadow: 0 18px 48px rgb(24 32 42 / 11%);
+      transform: translateY(-2px);
+    }
+
+    .conflict-card[data-open-confirm-key]:focus-visible {
+      outline: 3px solid rgb(23 105 170 / 26%);
+      outline-offset: 3px;
+    }
+
+    .conflict-card::before {
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 4px;
+      background: var(--type-color);
+      content: "";
+    }
+
+    .card-topline {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+
+    .card-statuses {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .type-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 9px;
+      border-radius: 8px;
+      color: var(--type-color);
+      background: var(--type-soft);
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .type-badge::before {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+      content: "";
+    }
+
+    .severity-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 7px;
+      border-radius: 6px;
+      font-size: 9px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .severity-badge[data-severity="high"] {
+      color: #922b26;
+      background: #fee5e2;
+    }
+
+    .severity-badge[data-severity="mid"] {
+      color: #765200;
+      background: #fff2cf;
+    }
+
+    .severity-badge[data-severity="low"] {
+      color: #446277;
+      background: #e9f1f6;
+    }
+
+    .local-status {
+      flex: 0 0 auto;
+      color: var(--ink-muted);
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .local-status[data-status="handled"] {
+      color: var(--success);
+    }
+
+    .local-status[data-status="ignored"] {
+      color: var(--ink-muted);
+    }
+
+    .integrity-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 7px;
+      border-radius: 6px;
+      color: #7a5500;
+      background: #fff4d7;
+      font-size: 9px;
+      font-weight: 800;
+    }
+
+    .integrity-badge::before {
+      content: "!";
+    }
+
+    .conflict-description {
+      margin: 0 0 14px;
+      font-size: 15px;
+      font-weight: 700;
+      line-height: 1.7;
+    }
+
+    .conflict-suggestion {
+      display: grid;
+      grid-template-columns: 42px 1fr;
+      gap: 9px;
+      margin: 0;
+      color: var(--ink-muted);
+      font-size: 13px;
+      line-height: 1.65;
+    }
+
+    .conflict-suggestion strong {
+      color: var(--ink);
+      font-size: 12px;
+    }
+
+    .card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 17px;
+      padding-top: 14px;
+      border-top: 1px solid #edf0f3;
+    }
+
+    .involved {
+      min-width: 0;
+      color: var(--ink-muted);
+      font-size: 12px;
+    }
+
+    .involved strong {
+      color: var(--ink);
+    }
+
+    .status-tag {
+      padding: 4px 8px;
+      border-radius: 999px;
+      color: var(--ink-muted);
+      background: #eef1f4;
+      font-size: 10px;
+      font-weight: 800;
+    }
+
+    .meta-cluster {
+      display: grid;
+      gap: 5px;
+      min-width: 0;
+    }
+
+    .rule-reference {
+      color: #7c8794;
+      font-size: 10px;
+    }
+
+    .rule-reference strong {
+      color: #5f6b78;
+    }
+
+    .filter-empty {
+      min-height: 170px;
+      display: grid;
+      place-items: center;
+      border: 1px dashed var(--line-strong);
+      border-radius: var(--radius);
+      color: var(--ink-muted);
+      background: rgb(255 255 255 / 55%);
+      font-size: 13px;
+      text-align: center;
+    }
+
+    .status-tag[data-status="handled"] {
+      color: var(--success);
+      background: var(--success-soft);
+    }
+
+    .card-footer-actions {
+      display: flex;
+      flex: 0 0 auto;
+      align-items: center;
+      gap: 9px;
+    }
+
+    .card-jump {
+      color: var(--type-color);
+      font-size: 10px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    /* 甘特页顶部：展示日期、线路、天窗时间、固定开销和有效作业时长。 */
+    .window-banner {
+      display: grid;
+      grid-template-columns: minmax(260px, 1.4fr) repeat(3, minmax(110px, 0.7fr));
+      gap: 1px;
+      overflow: hidden;
+      margin-bottom: 20px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--line);
+      box-shadow: var(--shadow);
+    }
+
+    .window-cell {
+      min-height: 108px;
+      padding: 19px 20px;
+      background: var(--surface);
+    }
+
+    .window-cell:first-child {
+      background:
+        linear-gradient(135deg, rgb(23 63 95 / 7%), transparent 62%),
+        var(--surface);
+    }
+
+    .window-label {
+      margin: 0 0 9px;
+      color: var(--ink-muted);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+    }
+
+    .window-value {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 800;
+      line-height: 1.45;
+    }
+
+    .window-subvalue {
+      margin: 6px 0 0;
+      color: var(--ink-muted);
+      font-size: 12px;
+    }
+
+    /* 甘特主体：左侧显示作业信息，右侧按分钟比例定位时间条。 */
+    .gantt-panel {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+
+    .gantt-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 15px 18px;
+      border-bottom: 1px solid var(--line);
+      background: var(--surface-muted);
+    }
+
+    .gantt-status {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .data-chip {
+      padding: 4px 8px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--ink-muted);
+      background: var(--surface);
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      color: var(--ink-muted);
+      font-size: 11px;
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .legend-swatch {
+      width: 9px;
+      height: 9px;
+      border-radius: 3px;
+      background: #8cadc3;
+    }
+
+    .legend-swatch.is-conflict {
+      background: var(--danger);
+    }
+
+    .legend-swatch.is-cutoff {
+      width: 2px;
+      height: 14px;
+      border-radius: 0;
+      background: var(--warning);
+    }
+
+    .gantt-scroll {
+      overflow-x: auto;
+    }
+
+    .gantt-board {
+      min-width: 900px;
+    }
+
+    .gantt-axis-row,
+    .gantt-row {
+      display: grid;
+      grid-template-columns: var(--label-width) minmax(600px, 1fr);
+    }
+
+    .gantt-window-row {
+      display: grid;
+      grid-template-columns: var(--label-width) minmax(600px, 1fr);
+      min-height: 48px;
+      border-bottom: 1px solid var(--line);
+      background: #f7f9fb;
+    }
+
+    .window-row-label {
+      display: grid;
+      align-content: center;
+      gap: 2px;
+      padding: 9px 18px;
+      border-right: 1px solid var(--line);
+    }
+
+    .window-row-title {
+      color: var(--brand);
+      font-size: 11px;
+      font-weight: 900;
+    }
+
+    .window-row-meta {
+      color: var(--ink-muted);
+      font-size: 9px;
+    }
+
+    .gantt-axis-row {
+      min-height: 54px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .axis-label,
+    .task-label {
+      display: flex;
+      align-items: center;
+      padding: 12px 18px;
+      border-right: 1px solid var(--line);
+    }
+
+    .axis-label {
+      color: var(--ink-muted);
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .time-axis,
+    .task-track {
+      position: relative;
+      min-width: 0;
+    }
+
+    .time-tick {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 1px;
+      background: #edf0f3;
+    }
+
+    .time-tick-label {
+      position: absolute;
+      top: 18px;
+      color: var(--ink-muted);
+      font-family: "Bahnschrift", "Segoe UI", sans-serif;
+      font-size: 10px;
+      transform: translateX(-50%);
+      white-space: nowrap;
+    }
+
+    .gantt-row {
+      min-height: 58px;
+      border-bottom: 1px solid #edf0f3;
+    }
+
+    .gantt-row:last-child {
+      border-bottom: 0;
+    }
+
+    .gantt-row.is-conflict {
+      background: #fffafa;
+    }
+
+    .task-label {
+      display: grid;
+      align-content: center;
+      gap: 3px;
+    }
+
+    .task-name {
+      overflow: hidden;
+      font-size: 12px;
+      font-weight: 800;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .task-meta {
+      overflow: hidden;
+      color: var(--ink-muted);
+      font-size: 10px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .task-track {
+      overflow: hidden;
+      background:
+        linear-gradient(180deg, rgb(248 249 250 / 72%), rgb(255 255 255 / 0%));
+    }
+
+    .grid-line {
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 1px;
+      background: #edf0f3;
+    }
+
+    .window-band {
+      position: absolute;
+      z-index: 1;
+      top: 8px;
+      bottom: 8px;
+      border: 1px solid #cdd8e2;
+      border-radius: 7px;
+      background: rgb(232 240 247 / 72%);
+    }
+
+    .cutoff-line {
+      position: absolute;
+      z-index: 2;
+      inset: 0 auto 0 86.363636%;
+      width: 2px;
+      background:
+        repeating-linear-gradient(
+          to bottom,
+          var(--warning) 0,
+          var(--warning) 5px,
+          transparent 5px,
+          transparent 9px
+        );
+    }
+
+    .task-bar {
+      position: absolute;
+      z-index: 3;
+      top: 14px;
+      height: 30px;
+      min-width: 3px;
+      border: 1px solid #6d95ad;
+      border-radius: 7px;
+      color: white;
+      background:
+        linear-gradient(90deg, rgb(255 255 255 / 6%), rgb(255 255 255 / 30%)),
+        #b8d0df;
+      box-shadow: 0 4px 10px rgb(23 63 95 / 10%);
+    }
+
+    .task-bar.is-conflict {
+      border-color: #9f2520;
+      outline: 2px solid #d34a44;
+      outline-offset: 1px;
+      box-shadow:
+        0 0 0 4px rgb(200 56 50 / 9%),
+        0 4px 12px rgb(200 56 50 / 16%);
+    }
+
+    .task-bar-label {
+      overflow: hidden;
+      padding: 7px 9px;
+      font-size: 10px;
+      font-weight: 800;
+      line-height: 1;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .cutoff-flag {
+      position: absolute;
+      z-index: 4;
+      top: 3px;
+      left: 86.363636%;
+      padding: 3px 7px;
+      border-radius: 5px;
+      color: #6d4500;
+      background: #ffe3ad;
+      font-size: 9px;
+      font-weight: 800;
+      transform: translateX(-50%);
+      white-space: nowrap;
+    }
+
+    .confirm-filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      margin: 0 0 16px;
+    }
+
+    /* 人工确认台：左侧逐条处理冲突，右侧汇总确认进度并支持导出。 */
+    .confirm-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 300px;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .confirm-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .confirm-card {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 18px;
+      padding: 18px 20px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--surface);
+      box-shadow: 0 10px 30px rgb(24 32 42 / 5%);
+    }
+
+    .confirm-card[data-status="handled"] {
+      border-color: #b8dcc8;
+      background: #fbfefc;
+    }
+
+    .confirm-card[data-status="ignored"] {
+      border-style: dashed;
+      background: #fafafa;
+    }
+
+    .confirm-card.is-targeted {
+      border-color: var(--warning);
+      box-shadow:
+        0 0 0 4px var(--warning-soft),
+        0 16px 38px rgb(24 32 42 / 12%);
+      animation: target-pulse 1.4s ease;
+    }
+
+    @keyframes target-pulse {
+      0% {
+        transform: scale(0.99);
+      }
+      45% {
+        transform: scale(1.005);
+      }
+      100% {
+        transform: scale(1);
+      }
+    }
+
+    .confirm-title {
+      margin: 8px 0 7px;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .confirm-meta {
+      margin: 0;
+      color: var(--ink-muted);
+      font-size: 11px;
+      line-height: 1.6;
+    }
+
+    .confirm-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-content: center;
+      justify-content: flex-end;
+      gap: 7px;
+      max-width: 230px;
+    }
+
+    .action-handled {
+      border-color: #a6cfb7;
+      color: var(--success);
+      background: var(--success-soft);
+    }
+
+    .action-ignored {
+      color: var(--ink-muted);
+      background: #f1f3f5;
+    }
+
+    .decision-actions {
+      display: grid;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .decision-panel {
+      position: sticky;
+      top: 104px;
+      padding: 20px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background:
+        linear-gradient(145deg, rgb(23 63 95 / 7%), transparent 50%),
+        var(--surface);
+      box-shadow: var(--shadow);
+    }
+
+    .decision-panel h3 {
+      margin: 0 0 8px;
+      font-size: 17px;
+    }
+
+    .decision-panel p {
+      margin: 0 0 18px;
+      color: var(--ink-muted);
+      font-size: 12px;
+      line-height: 1.7;
+    }
+
+    .decision-stats {
+      display: grid;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .decision-stat {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #edf0f3;
+      color: var(--ink-muted);
+      font-size: 12px;
+    }
+
+    .decision-stat strong {
+      color: var(--ink);
+      font-family: "Bahnschrift", "Segoe UI", sans-serif;
+      font-size: 18px;
+    }
+
+    .decision-panel .button {
+      width: 100%;
+    }
+
+    .button-danger-quiet {
+      border-color: #e3bab6;
+      color: #9a312b;
+      background: #fff6f5;
+    }
+
+    .decision-note {
+      margin-top: 14px !important;
+      padding-top: 14px;
+      border-top: 1px solid #edf0f3;
+      font-size: 10px !important;
+    }
+
+    /* 加载、空数据和筛选后无结果时使用的页面状态。 */
+    .empty-state,
+    .loading-state {
+      display: grid;
+      min-height: 240px;
+      place-items: center;
+      padding: 30px;
+      border: 1px dashed var(--line-strong);
+      border-radius: var(--radius);
+      color: var(--ink-muted);
+      background: rgb(255 255 255 / 55%);
+      text-align: center;
+    }
+
+    .empty-state[hidden],
+    .loading-state[hidden] {
+      display: none;
+    }
+
+    .empty-title {
+      margin: 0 0 7px;
+      color: var(--ink);
+      font-size: 16px;
+    }
+
+    .empty-copy {
+      max-width: 440px;
+      margin: 0;
+      font-size: 12px;
+      line-height: 1.7;
+    }
+
+    .spinner {
+      width: 30px;
+      height: 30px;
+      margin: 0 auto 14px;
+      border: 3px solid #dce3e9;
+      border-top-color: var(--brand);
+      border-radius: 50%;
+      animation: spin 750ms linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* 轻量操作反馈：保存、撤销和导出结果通过右下角提示显示。 */
+    .toast {
+      position: fixed;
+      z-index: 50;
+      right: 24px;
+      bottom: 24px;
+      max-width: min(360px, calc(100vw - 48px));
+      padding: 12px 15px;
+      border-radius: 10px;
+      color: white;
+      background: #1c2a36;
+      box-shadow: 0 14px 32px rgb(24 32 42 / 24%);
+      font-size: 12px;
+      line-height: 1.55;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(12px);
+      transition:
+        opacity 180ms ease,
+        transform 180ms ease;
+    }
+
+    .toast.is-visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* 规则目录抽屉：覆盖在当前页面上方，不新增第四个主页面。 */
+    .drawer-backdrop {
+      position: fixed;
+      z-index: 40;
+      inset: 0;
+      display: grid;
+      justify-items: end;
+      background: rgb(16 26 36 / 42%);
+      backdrop-filter: blur(3px);
+    }
+
+    .drawer-backdrop[hidden] {
+      display: none;
+    }
+
+    .rule-drawer {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      width: min(520px, calc(100vw - 32px));
+      height: 100%;
+      background: var(--surface);
+      box-shadow: -20px 0 60px rgb(16 26 36 / 20%);
+      animation: drawer-in 180ms ease both;
+    }
+
+    @keyframes drawer-in {
+      from {
+        transform: translateX(24px);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+
+    .drawer-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 24px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .drawer-title {
+      margin: 0;
+      font-size: 23px;
+      line-height: 1.2;
+    }
+
+    .drawer-copy {
+      margin: 8px 0 0;
+      color: var(--ink-muted);
+      font-size: 12px;
+      line-height: 1.7;
+    }
+
+    .drawer-close {
+      display: grid;
+      width: 34px;
+      height: 34px;
+      flex: 0 0 34px;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      color: var(--ink-muted);
+      background: var(--surface);
+      font-size: 20px;
+      cursor: pointer;
+    }
+
+    .drawer-body {
+      overflow-y: auto;
+      padding: 18px 24px 32px;
+    }
+
+    .rule-entry {
+      --type-color: var(--brand);
+      --type-soft: var(--brand-soft);
+      padding: 17px 0;
+      border-bottom: 1px solid #edf0f3;
+    }
+
+    .rule-entry:last-child {
+      border-bottom: 0;
+    }
+
+    .rule-entry-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .rule-entry-title {
+      margin: 0;
+      font-size: 14px;
+    }
+
+    .rule-status {
+      flex: 0 0 auto;
+      padding: 4px 7px;
+      border-radius: 999px;
+      color: var(--ink-muted);
+      background: #eef1f4;
+      font-size: 9px;
+      font-weight: 800;
+    }
+
+    .rule-entry-meta {
+      display: grid;
+      grid-template-columns: 88px 1fr;
+      gap: 7px 10px;
+      margin: 11px 0 0;
+      color: var(--ink-muted);
+      font-size: 11px;
+      line-height: 1.65;
+    }
+
+    .rule-entry-meta dt {
+      color: var(--ink);
+      font-weight: 800;
+    }
+
+    .rule-entry-meta dd {
+      margin: 0;
+    }
+
+    /* 中等屏幕：导航换行，指标改为两列，确认台侧栏下移。 */
+    @media (max-width: 1060px) {
+      .app-header {
+        grid-template-columns: 1fr auto;
+      }
+
+      .primary-nav {
+        grid-column: 1 / -1;
+        grid-row: 2;
+        justify-self: center;
+      }
+
+      .header-meta {
+        grid-column: 2;
+        grid-row: 1;
+      }
+
+      .metrics {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .confirm-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .decision-panel {
+        position: static;
+      }
+
+      .window-banner {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    /* 手机屏幕：所有主要网格改为单列，并隐藏非关键数据源文字。 */
+    @media (max-width: 760px) {
+      .app-header {
+        gap: 12px;
+        padding: 12px 16px;
+      }
+
+      .brand-mark {
+        width: 38px;
+        height: 38px;
+        flex-basis: 38px;
+      }
+
+      .brand-title {
+        font-size: 16px;
+      }
+
+      .brand-kicker {
+        display: none;
+      }
+
+      .source-pill {
+        width: 38px;
+        height: 38px;
+        justify-content: center;
+        padding: 0;
+        font-size: 0;
+      }
+
+      .primary-nav {
+        width: 100%;
+      }
+
+      .nav-link {
+        min-width: 0;
+        flex: 1;
+      }
+
+      .workspace {
+        width: min(100% - 28px, 1360px);
+        padding-top: 24px;
+      }
+
+      .page-heading {
+        flex-direction: column;
+      }
+
+      .metrics,
+      .conflict-grid,
+      .window-banner {
+        grid-template-columns: 1fr;
+      }
+
+      .metric {
+        min-height: 108px;
+      }
+
+      .conflict-card {
+        padding: 18px;
+      }
+
+      .confirm-card {
+        grid-template-columns: 1fr;
+      }
+
+      .confirm-actions {
+        justify-content: flex-start;
+        max-width: none;
+      }
+
+      .rule-toolbar {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .rule-tools {
+        justify-content: space-between;
+      }
+
+      .card-footer {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+    }
+
+    /* 尊重系统“减少动态效果”设置，关闭非必要动画和滚动效果。 */
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- 应用顶栏：品牌信息、三个页面的 hash 导航和当前数据源状态。 -->
+  <header class="app-header">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M6 4h12v16H6z"></path>
+          <path d="M8.5 7h7M8.5 10h7M8.5 13h4"></path>
+          <path d="M5 20h14"></path>
+        </svg>
+      </div>
+      <div class="brand-copy">
+        <p class="brand-kicker">RAILWAY SKYLIGHT</p>
+        <h1 class="brand-title">天窗协同核查台</h1>
+      </div>
+    </div>
+
+    <!-- 三个主页面使用 hash 路由，可分别通过 #list、#gantt、#confirm 直接打开。 -->
+    <nav class="primary-nav" aria-label="主要页面">
+      <a class="nav-link" href="#list" data-route="list">冲突清单</a>
+      <a class="nav-link" href="#gantt" data-route="gantt">时长甘特</a>
+      <a class="nav-link" href="#confirm" data-route="confirm">人工确认</a>
+    </nav>
+
+    <div class="header-meta">
+      <span class="source-pill" id="sourcePill" data-source="loading">
+        <span class="source-dot" aria-hidden="true"></span>
+        <span id="sourceText">正在连接</span>
+      </span>
+    </div>
+  </header>
+
+  <!-- 主工作区：三个 section 共用状态和规则目录，路由层一次只显示其中一个。 -->
+  <main class="workspace">
+    <!-- 页面一：冲突清单，包含规则筛选、统计指标、分组冲突卡片。 -->
+    <section class="view" id="view-list" data-view="list" hidden>
+      <div class="page-heading">
+        <div>
+          <p class="eyebrow">WINDOW REVIEW</p>
+          <h2 class="page-title">天窗冲突清单</h2>
+          <p class="page-description">
+            汇总当前计划中的作业单元占用、时长、配合关系和人员配置问题。冲突判断来自确定性规则，页面只负责呈现结果并提供人工处理入口。
+          </p>
+        </div>
+        <button class="button" id="refreshButton" type="button">
+          <span aria-hidden="true">↻</span>
+          重新核查
+        </button>
+      </div>
+
+      <!-- 后端不可达或返回异常时，明确告知当前正在使用演示数据。 -->
+      <div class="notice" id="fallbackNotice" role="status" hidden>
+        <span class="notice-mark" aria-hidden="true">!</span>
+        <span id="fallbackNoticeText">当前未连接后端，正在使用内置的 9 月 23 日演示数据。</span>
+      </div>
+
+      <!-- 前端规则层入口：类型筛选、待确认筛选和六类规则目录。 -->
+      <div class="rule-toolbar">
+        <div class="rule-filters" id="ruleFilters" aria-label="按冲突类型筛选"></div>
+        <div class="rule-tools">
+          <button
+            class="button button-small toggle-button"
+            id="pendingOnlyButton"
+            type="button"
+            aria-pressed="false"
+          >
+            仅看待确认
+          </button>
+          <button
+            class="button button-small"
+            id="openRulesButton"
+            type="button"
+            aria-expanded="false"
+            aria-controls="ruleBackdrop"
+          >
+            规则目录
+          </button>
+          <span class="rule-coverage" id="ruleCoverage">规则覆盖 —</span>
+        </div>
+      </div>
+
+      <!-- 汇总卡片只统计接口或演示数据，不额外推断新的冲突。 -->
+      <div class="metrics" aria-label="冲突概况">
+        <article class="metric">
+          <p class="metric-label">冲突总数</p>
+          <p class="metric-value" id="metricTotal">—</p>
+          <p class="metric-note">当前接口返回或演示数据</p>
+        </article>
+        <article class="metric" style="--metric-tint: var(--brand-soft)">
+          <p class="metric-label">冲突类型</p>
+          <p class="metric-value" id="metricTypes">—</p>
+          <p class="metric-note">当前数据涉及的类型数</p>
+        </article>
+        <article class="metric" style="--metric-tint: var(--electric-soft)">
+          <p class="metric-label">涉及作业</p>
+          <p class="metric-value" id="metricInvolved">—</p>
+          <p class="metric-note">去掉重复后的作业标识数</p>
+        </article>
+        <article class="metric" style="--metric-tint: var(--caution-soft)">
+          <p class="metric-label">待确认</p>
+          <p class="metric-value" id="metricPending">—</p>
+          <p class="metric-note">尚未人工处理或忽略</p>
+        </article>
+        <article class="metric" style="--metric-tint: var(--success-soft)">
+          <p class="metric-label">已人工处理</p>
+          <p class="metric-value" id="metricHandled">—</p>
+          <p class="metric-note">状态保存在当前浏览器</p>
+        </article>
+      </div>
+
+      <!-- 列表的加载、空状态和动态冲突内容由 renderList() 控制。 -->
+      <div class="loading-state" id="listLoading">
+        <div>
+          <div class="spinner" aria-hidden="true"></div>
+          <p>正在读取冲突数据…</p>
+        </div>
+      </div>
+
+      <div class="empty-state" id="listEmpty" hidden>
+        <div>
+          <p class="empty-title">当前没有冲突</p>
+          <p class="empty-copy">如果已连接接口，这可能表示当前计划通过检查；如果显示的是演示模式，请检查样例数据。</p>
+        </div>
+      </div>
+
+      <div id="conflictGroups" aria-live="polite"></div>
+    </section>
+
+    <!-- 页面二：时长甘特，使用任务起止时间换算横向位置和宽度。 -->
+    <section class="view" id="view-gantt" data-view="gantt" hidden>
+      <div class="page-heading">
+        <div>
+          <p class="eyebrow">TIME ALLOCATION</p>
+          <h2 class="page-title">时长甘特</h2>
+          <p class="page-description">
+            按实际作业时段展示天窗占用。橙色虚线表示扣除登记请点、防护设置和开通确认等固定开销后的有效作业截止时间。
+          </p>
+        </div>
+      </div>
+
+      <!-- 天窗基本信息；固定开销 15 分钟和有效作业时间由前端展示规则确定。 -->
+      <div class="window-banner" aria-label="天窗基本信息">
+        <div class="window-cell">
+          <p class="window-label">当前天窗</p>
+          <p class="window-value" id="windowTitle">2026-09-23 · 萍乡新场</p>
+          <p class="window-subvalue" id="windowRoute">沪昆线 · 站内上行</p>
+        </div>
+        <div class="window-cell">
+          <p class="window-label">时间范围</p>
+          <p class="window-value" id="windowRange">07:30—09:20</p>
+          <p class="window-subvalue" id="windowDurationNote">实际时长 110 分钟</p>
+        </div>
+        <div class="window-cell">
+          <p class="window-label">固定开销</p>
+          <p class="window-value" id="windowOverheadValue">15 分钟</p>
+          <p class="window-subvalue">请点、防护、开通</p>
+        </div>
+        <div class="window-cell">
+          <p class="window-label">有效作业时间</p>
+          <p class="window-value" id="windowEffectiveValue">95 分钟</p>
+          <p class="window-subvalue" id="windowEffectiveNote">首个天窗有效作业时间</p>
+        </div>
+      </div>
+
+      <!-- 甘特图渲染容器：时间轴、每行时间条和 95 分钟有效截止线在此生成。 -->
+      <div class="gantt-panel">
+        <div class="gantt-toolbar">
+          <div class="gantt-status">
+            <strong id="taskCount">12 条作业</strong>
+            <span class="data-chip" id="taskSourceText">任务演示数据</span>
+          </div>
+          <div class="legend" id="ganttLegend" aria-label="甘特图图例"></div>
+        </div>
+        <div class="gantt-scroll">
+          <div class="gantt-board" id="ganttBoard"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 页面三：人工确认台，本周只使用浏览器 localStorage，不写服务器。 -->
+    <section class="view" id="view-confirm" data-view="confirm" hidden>
+      <div class="page-heading">
+        <div>
+          <p class="eyebrow">HUMAN IN THE LOOP</p>
+          <h2 class="page-title">人工确认台</h2>
+          <p class="page-description">
+            系统只提供冲突线索与处理建议。调度人员可以标记已处理、忽略或撤销，本周状态先保存在浏览器本地。
+          </p>
+        </div>
+      </div>
+
+      <!-- 确认台状态筛选只改变当前列表视图，不修改已保存的人工处理结果。 -->
+      <div class="confirm-filters" id="confirmFilters" aria-label="筛选确认状态">
+        <button class="filter-chip is-active" type="button" data-confirm-filter="all">全部 <span class="filter-count" id="confirmCountAll">0</span></button>
+        <button class="filter-chip" type="button" data-confirm-filter="pending">待确认 <span class="filter-count" id="confirmCountPending">0</span></button>
+        <button class="filter-chip" type="button" data-confirm-filter="handled">已处理 <span class="filter-count" id="confirmCountHandled">0</span></button>
+        <button class="filter-chip" type="button" data-confirm-filter="ignored">已忽略 <span class="filter-count" id="confirmCountIgnored">0</span></button>
+      </div>
+
+      <!-- 左侧逐条确认，右侧展示已处理、已忽略和待确认数量。 -->
+      <div class="confirm-layout">
+        <div class="confirm-list" id="confirmList" aria-live="polite"></div>
+
+        <aside class="decision-panel">
+          <h3>确认进度</h3>
+          <p>这里的记录用于演示人工收口流程。刷新页面后仍会保留，但不会写入服务器。</p>
+          <div class="decision-stats">
+            <div class="decision-stat">
+              <span>冲突总数</span>
+              <strong id="decisionTotal">0</strong>
+            </div>
+            <div class="decision-stat">
+              <span>已处理</span>
+              <strong id="decisionHandled">0</strong>
+            </div>
+            <div class="decision-stat">
+              <span>已忽略</span>
+              <strong id="decisionIgnored">0</strong>
+            </div>
+            <div class="decision-stat">
+              <span>待确认</span>
+              <strong id="decisionPending">0</strong>
+            </div>
+          </div>
+          <div class="decision-actions">
+            <button class="button button-primary" id="exportButton" type="button">
+              导出确认记录 JSON
+            </button>
+            <button class="button button-danger-quiet" id="resetButton" type="button">
+              重置全部确认记录
+            </button>
+          </div>
+          <p class="decision-note">
+            稳定键由“冲突类型 + involved”组合生成。当前接口没有 id，因此不使用不存在的 item.id。
+          </p>
+        </aside>
+      </div>
+    </section>
+  </main>
+
+  <!-- 规则目录抽屉：解释六类规则的编号、条文索引、触发条件和当前状态。 -->
+  <div class="drawer-backdrop" id="ruleBackdrop" hidden>
+    <aside
+      class="rule-drawer"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="ruleDrawerTitle"
+    >
+      <header class="drawer-header">
+        <div>
+          <p class="eyebrow">RULE CATALOG</p>
+          <h2 class="drawer-title" id="ruleDrawerTitle">冲突规则目录</h2>
+          <p class="drawer-copy">
+            前端只负责任务数据适配、规则索引和呈现；冲突是否成立以后端确定性算法为准。
+          </p>
+        </div>
+        <button class="drawer-close" id="closeRulesButton" type="button" aria-label="关闭规则目录">×</button>
+      </header>
+      <div class="drawer-body" id="ruleCatalog"></div>
+    </aside>
+  </div>
+
+  <!-- 统一的短暂操作反馈，不阻塞页面操作。 -->
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    /*
+     * 使用 IIFE 隔离应用状态和函数，避免与后端静态页面中的其他脚本
+     * 发生同名变量或函数冲突。
+     */
+    (function () {
+    "use strict";
+
+    /*
+     * 单文件前端说明：
+     * 1. 数据契约与接口配置放在最前面，便于后端字段变化时集中修改。
+     * 2. 所有业务数据先标准化，再进入渲染和规则校验。
+     * 3. 页面渲染全部使用 DOM API 和 textContent，避免直接拼接 HTML。
+     */
+
+    /* =========================================================
+       一、接口配置
+       默认值与冻结契约保持一致；查询参数允许本地开发时临时指向其他服务。
+       ========================================================= */
+    const query = new URLSearchParams(window.location.search);
+    const CONFLICT_API = query.get("api") || "/api/conflicts";
+    /*
+     * 冲突、任务、天窗三个接口后端均已提供。默认走真实接口，
+     * 仍可通过查询参数覆盖；请求失败时自动回退到演示数据。
+     */
+    const TASK_API = query.get("tasksApi") || "/api/tasks";
+    const WINDOW_API = query.get("windowsApi") || "/api/windows";
+    const STORAGE_KEY = "skylight-conflict-decisions-v1";
+
+    /* 六类冲突的显示主题；真实判定由后端完成，这里只决定颜色和视觉样式。 */
+    const CONFLICT_TYPES = {
+      "作业单元冲突": {
+        color: "var(--danger)",
+        soft: "var(--danger-soft)"
+      },
+      "时长冲突": {
+        color: "var(--warning)",
+        soft: "var(--warning-soft)"
+      },
+      "配合缺失": {
+        color: "var(--caution)",
+        soft: "var(--caution-soft)"
+      },
+      "天窗负责人缺失": {
+        color: "var(--neutral)",
+        soft: "var(--neutral-soft)"
+      },
+      "电气冲突": {
+        color: "var(--electric)",
+        soft: "var(--electric-soft)"
+      },
+      "依赖冲突": {
+        color: "var(--dependency)",
+        soft: "var(--dependency-soft)"
+      }
+    };
+
+    /* =========================================================
+       二、前端规则目录
+       用于筛选、解释规则和显示条文索引。ruleRef 是界面展示，
+       不等同于后端的正式可追溯字段，也不会计入可追溯率。
+       ========================================================= */
+    const RULE_CATALOG = {
+      "作业单元冲突": {
+        code: "UNIT-01",
+        article: "2.2.10",
+        title: "同一作业单元被多个主体占用",
+        trigger: "同一物理作业单元、作业时段重叠，且涉及两个及以上工区或专业。",
+        severity: "high",
+        status: "本周使用"
+      },
+      "时长冲突": {
+        code: "TIME-01",
+        article: "2.2.1",
+        title: "作业时长超过有效天窗",
+        trigger: "作业时长需要结合天窗实际时长和 15 分钟固定开销判断；本周仅展示，暂不对外计分。",
+        severity: "high",
+        status: "显示不计分"
+      },
+      "配合缺失": {
+        code: "COOP-01",
+        article: "2.2.8",
+        title: "应配合但未确认到场",
+        trigger: "作业触发配合需求，但配合单位未确认，或配合通知缺少回执。",
+        severity: "mid",
+        status: "本周使用"
+      },
+      "天窗负责人缺失": {
+        code: "LEAD-01",
+        article: "2.2.10",
+        title: "天窗主体负责人未明确",
+        trigger: "同一时段涉及多个工区，但天窗主体单位或负责人字段为空。",
+        severity: "mid",
+        status: "规则待补"
+      },
+      "电气冲突": {
+        code: "ELEC-01",
+        article: "2.2.8 第 2 类",
+        title: "停电范围与带电需求冲突",
+        trigger: "停电供电臂集合与带电作业需求存在交集，且作业时间重叠。",
+        severity: "high",
+        status: "数据预留"
+      },
+      "依赖冲突": {
+        code: "DEP-01",
+        article: "2.2.7 / 2.4.1",
+        title: "任务依赖顺序不成立",
+        trigger: "依赖关系成环，或前置作业顺序与登记、请点、停电等业务顺序矛盾。",
+        severity: "high",
+        status: "样例验证"
+      }
+    };
+
+    const UNKNOWN_RULE = {
+      code: "UNREGISTERED",
+      article: "未登记",
+      title: "未登记的冲突类型",
+      trigger: "接口返回了规则目录中不存在的 type，系统保留原值并标记为数据质量问题。",
+      severity: "low",
+      status: "需核查"
+    };
+
+    const SEVERITY_META = {
+      high: { label: "严重" },
+      mid: { label: "关注" },
+      low: { label: "提示" }
+    };
+
+    /* 人工确认台的三种本地状态；pending 表示尚未处理。 */
+    const STATUS_LABELS = {
+      pending: "待确认",
+      handled: "已处理",
+      ignored: "已忽略"
+    };
+
+    /* =========================================================
+       三、演示数据
+       后端不可用时保证页面仍可演示。数据字段刻意与冻结契约保持一致。
+       ========================================================= */
+    const SAMPLE_WINDOWS = [
+      {
+        id: "W-20260923-0730-0920",
+        date: "2026-09-23",
+        line: "沪昆线",
+        direction: "站内上行",
+        station: "萍乡新场",
+        start: "07:30",
+        end: "09:20",
+        overheadMinutes: 15
+      },
+      {
+        id: "W-20260923-1105-1335",
+        date: "2026-09-23",
+        line: "沪昆线",
+        direction: "站内下行",
+        station: "萍乡新场",
+        start: "11:05",
+        end: "13:35",
+        overheadMinutes: 15
+      }
+    ];
+
+    /* 7 条样例对应本周验收的冲突数量：5 条单元冲突和 2 条配合缺失。 */
+    const SAMPLE_CONFLICTS = [
+      {
+        type: "作业单元冲突",
+        description: "作业单元【列602区】被 2 个工区同时占用：萍乡新场线路工区、萍乡检查工区",
+        suggestion: "按专业主次排序，或协商更换作业单元",
+        involved: "18, 49"
+      },
+      {
+        type: "作业单元冲突",
+        description: "作业单元【列606区】被 2 个工区同时占用：萍乡新场线路工区、萍乡检查工区",
+        suggestion: "明确主体单位，调整其中一组作业的占用单元",
+        involved: "19, 51"
+      },
+      {
+        type: "作业单元冲突",
+        description: "作业单元【列608区】被 2 个工区同时占用：萍乡新场线路工区、萍乡检查工区",
+        suggestion: "将检查作业移至非重叠时段，或更换相邻作业单元",
+        involved: "20, 52"
+      },
+      {
+        type: "作业单元冲突",
+        description: "作业单元【列610区】被 2 个工区同时占用：萍乡新场线路工区、萍乡检查工区",
+        suggestion: "确认作业边界，必要时拆分作业单元",
+        involved: "21, 53"
+      },
+      {
+        type: "作业单元冲突",
+        description: "作业单元【列4区】被 2 个工区同时占用：萍乡新场线路工区、萍乡检查工区",
+        suggestion: "按主体单位协调顺序，并在计划中补充统一分界点",
+        involved: "23, 55"
+      },
+      {
+        type: "配合缺失",
+        description: "作业任务#8 需要电务单位配合，但尚未确认到场",
+        suggestion: "发出配合通知，并列入待确认清单",
+        involved: "任务#8"
+      },
+      {
+        type: "配合缺失",
+        description: "作业任务#10 需要通信单位配合，但尚未确认到场",
+        suggestion: "补齐配合通知与到场回执",
+        involved: "任务#10"
+      }
+    ];
+
+    /* 甘特演示任务；未来 /api/tasks 可用时会被接口数据替换。 */
+    const SAMPLE_TASKS = [
+      { windowId: "W-20260923-0730-0920", serial: 18, team: "萍乡新场线路工区", unit: "列602区", start: "07:30", end: "09:20", item: "道岔结构检查" },
+      { windowId: "W-20260923-0730-0920", serial: 19, team: "萍乡新场线路工区", unit: "列606区", start: "07:30", end: "09:20", item: "线路设备巡检" },
+      { windowId: "W-20260923-0730-0920", serial: 20, team: "萍乡新场线路工区", unit: "列608区", start: "07:30", end: "09:20", item: "道岔几何尺寸检查" },
+      { windowId: "W-20260923-0730-0920", serial: 21, team: "萍乡新场线路工区", unit: "列610区", start: "07:30", end: "09:20", item: "轨道结构检查" },
+      { windowId: "W-20260923-0730-0920", serial: 23, team: "萍乡新场线路工区", unit: "列4区", start: "07:30", end: "09:20", item: "道岔综合检查" },
+      { windowId: "W-20260923-0730-0920", serial: 24, team: "萍乡新场线路工区", unit: "列3区", start: "07:30", end: "09:20", item: "线路巡检" },
+      { windowId: "W-20260923-0730-0920", serial: 49, team: "萍乡检查工区", unit: "列602区", start: "07:30", end: "09:20", item: "设备质量检查" },
+      { windowId: "W-20260923-0730-0920", serial: 50, team: "萍乡检查工区", unit: "列604区", start: "07:30", end: "09:20", item: "线路设备检查" },
+      { windowId: "W-20260923-0730-0920", serial: 51, team: "萍乡检查工区", unit: "列606区", start: "07:30", end: "09:20", item: "道岔检查" },
+      { windowId: "W-20260923-0730-0920", serial: 52, team: "萍乡检查工区", unit: "列608区", start: "07:30", end: "09:20", item: "轨道检查" },
+      { windowId: "W-20260923-0730-0920", serial: 53, team: "萍乡检查工区", unit: "列610区", start: "07:30", end: "09:20", item: "设备状态检查" },
+      { windowId: "W-20260923-0730-0920", serial: 55, team: "萍乡检查工区", unit: "列4区", start: "07:30", end: "09:20", item: "重点设备检查" },
+      { windowId: "W-20260923-1105-1335", serial: 16, team: "萍乡新场线路工区", unit: "列2区", start: "11:05", end: "13:35", item: "无缝线路位移观测" },
+      { windowId: "W-20260923-1105-1335", serial: 43, team: "萍乡老场线路工区", unit: "列3区", start: "11:20", end: "13:20", item: "钢轨母材探伤" },
+      { windowId: "W-20260923-1105-1335", serial: 44, team: "萍乡老场线路工区", unit: "列4区", start: "11:10", end: "12:40", item: "线路仪检" }
+    ];
+
+    const TEAM_COLORS = [
+      "#4f7b9a",
+      "#b5652c",
+      "#347c72",
+      "#79649d",
+      "#9a7b31",
+      "#4374a8",
+      "#8d5364"
+    ];
+
+    /* =========================================================
+       四、页面状态
+       所有可变数据集中存放，筛选和确认操作只修改 state 后重新渲染。
+       ========================================================= */
+    const state = {
+      conflicts: [],
+      tasks: [],
+      windows: [],
+      decisions: {},
+      route: "list",
+      activeType: "all",
+      pendingOnly: false,
+      confirmFilter: "all",
+      focusConflictKey: "",
+      loading: true,
+      dataSource: "loading",
+      taskSource: "demo",
+      windowSource: "demo",
+      errorMessage: ""
+    };
+
+    /* 缓存常用 DOM 节点，避免事件处理和重复渲染时反复查询页面。 */
+    const elements = {
+      sourcePill: document.querySelector("#sourcePill"),
+      sourceText: document.querySelector("#sourceText"),
+      fallbackNotice: document.querySelector("#fallbackNotice"),
+      fallbackNoticeText: document.querySelector("#fallbackNoticeText"),
+      ruleFilters: document.querySelector("#ruleFilters"),
+      pendingOnlyButton: document.querySelector("#pendingOnlyButton"),
+      openRulesButton: document.querySelector("#openRulesButton"),
+      ruleCoverage: document.querySelector("#ruleCoverage"),
+      ruleBackdrop: document.querySelector("#ruleBackdrop"),
+      closeRulesButton: document.querySelector("#closeRulesButton"),
+      ruleCatalog: document.querySelector("#ruleCatalog"),
+      refreshButton: document.querySelector("#refreshButton"),
+      listLoading: document.querySelector("#listLoading"),
+      listEmpty: document.querySelector("#listEmpty"),
+      conflictGroups: document.querySelector("#conflictGroups"),
+      metricTotal: document.querySelector("#metricTotal"),
+      metricTypes: document.querySelector("#metricTypes"),
+      metricInvolved: document.querySelector("#metricInvolved"),
+      metricPending: document.querySelector("#metricPending"),
+      metricHandled: document.querySelector("#metricHandled"),
+      ganttBoard: document.querySelector("#ganttBoard"),
+      ganttLegend: document.querySelector("#ganttLegend"),
+      taskCount: document.querySelector("#taskCount"),
+      taskSourceText: document.querySelector("#taskSourceText"),
+      windowTitle: document.querySelector("#windowTitle"),
+      windowRoute: document.querySelector("#windowRoute"),
+      windowRange: document.querySelector("#windowRange"),
+      windowDurationNote: document.querySelector("#windowDurationNote"),
+      windowOverheadValue: document.querySelector("#windowOverheadValue"),
+      windowEffectiveValue: document.querySelector("#windowEffectiveValue"),
+      windowEffectiveNote: document.querySelector("#windowEffectiveNote"),
+      confirmList: document.querySelector("#confirmList"),
+      confirmFilters: document.querySelector("#confirmFilters"),
+      confirmCountAll: document.querySelector("#confirmCountAll"),
+      confirmCountPending: document.querySelector("#confirmCountPending"),
+      confirmCountHandled: document.querySelector("#confirmCountHandled"),
+      confirmCountIgnored: document.querySelector("#confirmCountIgnored"),
+      decisionTotal: document.querySelector("#decisionTotal"),
+      decisionHandled: document.querySelector("#decisionHandled"),
+      decisionIgnored: document.querySelector("#decisionIgnored"),
+      decisionPending: document.querySelector("#decisionPending"),
+      exportButton: document.querySelector("#exportButton"),
+      resetButton: document.querySelector("#resetButton"),
+      toast: document.querySelector("#toast")
+    };
+
+    /* 右下角提示的计时器；连续操作时先清除上一条提示。 */
+    let toastTimer = null;
+
+    /* 创建元素并安全设置类名和文本，是动态渲染的公共入口。 */
+    function createElement(tag, className, text) {
+      const node = document.createElement(tag);
+      if (className) node.className = className;
+      if (text !== undefined) node.textContent = text;
+      return node;
+    }
+
+    /* 当前接口没有 id，因此使用 type + involved 组成本地稳定键。 */
+    function conflictKey(conflict) {
+      return `${String(conflict.type || "")}|${String(conflict.involved || "")}`;
+    }
+
+    /* 校验 involved 是否属于已约定的数字串、任务#编号或说明性文本格式。 */
+    function isRecognizedInvolved(value) {
+      return (
+        /^[\d,\s，]+$/.test(value) ||
+        /^任务#\d+$/.test(value) ||
+        /^见\s+\S+/.test(value)
+      );
+    }
+
+    /*
+     * severity 未冻结为接口必填字段。有值时采用接口等级；无值时只使用规则目录的
+     * 本地展示级别，并在卡片中说明来源，避免冒充后端的正式严重度结论。
+     */
+    function normalizeSeverity(value, fallbackLevel) {
+      const original = String(value || "").trim();
+      if (/^(严重|高|高风险|high)$/i.test(original)) {
+        return { level: "high", label: original, source: "api" };
+      }
+      if (/^(关注|中|中等|medium|mid)$/i.test(original)) {
+        return { level: "mid", label: original, source: "api" };
+      }
+      if (/^(提示|低|low)$/i.test(original)) {
+        return { level: "low", label: original, source: "api" };
+      }
+
+      const level = SEVERITY_META[fallbackLevel] ? fallbackLevel : "low";
+      return {
+        level,
+        label: SEVERITY_META[level].label,
+        source: "local"
+      };
+    }
+
+    /* 将接口对象转换为页面统一结构，并记录可展示的数据质量问题。 */
+    function normalizeConflict(raw, index) {
+      const type = String(raw?.type || "未知冲突").trim();
+      const involved = Array.isArray(raw?.involved)
+        ? raw.involved.join(", ")
+        : String(raw?.involved ?? "未提供").trim();
+      const rule = RULE_CATALOG[type] || UNKNOWN_RULE;
+      const severity = normalizeSeverity(raw?.severity, rule.severity);
+      const warnings = [];
+
+      if (!RULE_CATALOG[type]) warnings.push("未登记的冲突类型");
+      if (!isRecognizedInvolved(involved)) warnings.push("involved 格式无法识别");
+      if (!String(raw?.description || "").trim()) warnings.push("缺少冲突描述");
+      if (!String(raw?.suggestion || "").trim()) warnings.push("缺少处理建议");
+
+      return {
+        index,
+        id: String(raw?.id || ""),
+        type,
+        description: String(raw?.description || "暂无冲突描述").trim(),
+        suggestion: String(raw?.suggestion || "暂无处理建议").trim(),
+        involved,
+        ruleRef: String(raw?.ruleRef || "").trim(),
+        rule,
+        severity,
+        warnings,
+        key: `${type}|${involved}`
+      };
+    }
+
+    /* 兼容任务接口的驼峰和下划线字段，统一成甘特渲染需要的结构。 */
+    function normalizeTask(raw, index) {
+      const start =
+        raw?.start || raw?.startTime || raw?.tStart || raw?.t_start || "07:30";
+      const end =
+        raw?.end || raw?.endTime || raw?.tEnd || raw?.t_end || "09:20";
+
+      return {
+        id: raw?.id ?? raw?.serial ?? raw?.serialNo ?? index,
+        windowId: String(
+          raw?.windowId ||
+            raw?.window_id ||
+            raw?.win ||
+            SAMPLE_WINDOWS[0].id
+        ),
+        serial: Number(raw?.serial ?? raw?.serialNo ?? raw?.id ?? index),
+        team: String(raw?.team || raw?.workArea || raw?.work_area || "未知工区"),
+        unit: String(raw?.unit || raw?.workUnitCode || raw?.work_unit_code || "未指定单元"),
+        item: String(raw?.item || raw?.workType || raw?.work_type || "作业任务"),
+        start: String(start).slice(0, 5),
+        end: String(end).slice(0, 5)
+      };
+    }
+
+    /* 统一天窗接口字段，供多天窗甘特计算全局时间范围和 15 分钟截止线。 */
+    function normalizeWindow(raw, index) {
+      return {
+        id: String(raw?.id ?? raw?.windowId ?? `W-${index + 1}`),
+        date: String(raw?.date || raw?.planDate || "2026-09-23"),
+        line: String(raw?.line || raw?.lineName || "未命名线路"),
+        direction: String(raw?.direction || raw?.scope || "未指定行别"),
+        station: String(raw?.station || raw?.registerStation || "未指定车站"),
+        start: String(raw?.start || raw?.startTime || "07:30").slice(0, 5),
+        end: String(raw?.end || raw?.endTime || "09:20").slice(0, 5),
+        overheadMinutes: Number(raw?.overheadMinutes ?? 15)
+      };
+    }
+
+    /* =========================================================
+       五、本地确认状态
+       本周后端没有 PATCH 契约，因此状态存 localStorage；异常数据从空对象恢复。
+       ========================================================= */
+    function loadDecisions() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+        if (saved && typeof saved === "object" && !Array.isArray(saved)) {
+          state.decisions = saved;
+        }
+      } catch (error) {
+        state.decisions = {};
+        showToast("本地确认记录读取失败，已从空状态开始。");
+      }
+    }
+
+    /* 将人工确认状态序列化保存，浏览器禁用本地存储时给出提示。 */
+    function saveDecisions() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state.decisions));
+      } catch (error) {
+        showToast("浏览器未允许保存本地状态。");
+      }
+    }
+
+    /* =========================================================
+       六、网络请求
+       所有请求都带超时控制；文件模式直接跳过请求，使用演示数据。
+       ========================================================= */
+    async function fetchJson(url, timeoutMs = 4500) {
+      if (window.location.protocol === "file:") {
+        throw new Error("本地文件模式无法访问相对 API");
+      }
+
+      const controller = new AbortController();
+      const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+
+      try {
+        const response = await fetch(url, {
+          cache: "no-store",
+          headers: { Accept: "application/json" },
+          signal: controller.signal
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        return await response.json();
+      } finally {
+        window.clearTimeout(timer);
+      }
+    }
+
+    /* 读取冲突接口；任何失败都回退到样例，并记录失败原因供页面提示。 */
+    async function loadConflicts() {
+      state.loading = true;
+      state.errorMessage = "";
+      renderListState();
+
+      try {
+        const data = await fetchJson(CONFLICT_API);
+        if (data?.status === "backend_unavailable") {
+          throw new Error("后端未连接");
+        }
+        if (!Array.isArray(data)) {
+          throw new Error("接口返回值不是数组");
+        }
+
+        state.conflicts = data.map(normalizeConflict);
+        state.dataSource = "api";
+        state.errorMessage = "";
+      } catch (error) {
+        state.conflicts = SAMPLE_CONFLICTS.map(normalizeConflict);
+        state.dataSource = "demo";
+        state.errorMessage =
+          error?.name === "AbortError" ? "接口请求超时" : error?.message || "接口不可用";
+      } finally {
+        state.loading = false;
+        renderAll();
+      }
+    }
+
+    /* 读取任务接口；当前后端没有稳定任务契约，失败时使用甘特演示数据。 */
+    async function loadTasks() {
+      if (!TASK_API) {
+        state.tasks = SAMPLE_TASKS.map(normalizeTask);
+        state.taskSource = "demo";
+        return;
+      }
+
+      try {
+        const data = await fetchJson(TASK_API);
+        if (!Array.isArray(data) || data.length === 0) {
+          throw new Error("任务接口为空");
+        }
+        state.tasks = data.map(normalizeTask);
+        state.taskSource = "api";
+      } catch (error) {
+        state.tasks = SAMPLE_TASKS.map(normalizeTask);
+        state.taskSource = "demo";
+      }
+    }
+
+    /* 读取天窗接口；未配置 windowsApi 时继续使用两段内置天窗数据。 */
+    async function loadWindows() {
+      if (!WINDOW_API) {
+        state.windows = SAMPLE_WINDOWS.map(normalizeWindow);
+        state.windowSource = "demo";
+        return;
+      }
+
+      try {
+        const data = await fetchJson(WINDOW_API);
+        if (!Array.isArray(data) || data.length === 0) {
+          throw new Error("天窗接口为空");
+        }
+        state.windows = data.map(normalizeWindow);
+        state.windowSource = "api";
+      } catch (error) {
+        state.windows = SAMPLE_WINDOWS.map(normalizeWindow);
+        state.windowSource = "demo";
+      }
+    }
+
+    /* 查询单条冲突的本地确认记录。 */
+    function decisionOf(conflict) {
+      return state.decisions[conflict.key] || null;
+    }
+
+    /* 返回待确认、已处理或已忽略状态。 */
+    function statusOf(conflict) {
+      return decisionOf(conflict)?.status || "pending";
+    }
+
+    /* 统计指定冲突类型的数量，供指标、筛选和规则目录复用。 */
+    function countByType(type) {
+      return state.conflicts.filter(conflict => conflict.type === type).length;
+    }
+
+    /* 根据当前类型和“仅看待确认”条件筛选列表，不修改原始数据。 */
+    function filteredConflicts() {
+      return state.conflicts.filter(conflict => {
+        const typeMatches =
+          state.activeType === "all" || conflict.type === state.activeType;
+        const statusMatches =
+          !state.pendingOnly || statusOf(conflict) === "pending";
+        return typeMatches && statusMatches;
+      });
+    }
+
+    /* 按冲突类型分组；Map 保持首次出现顺序，页面不会随机跳动。 */
+    function groupConflicts(conflicts) {
+      const groups = new Map();
+      for (const conflict of conflicts) {
+        if (!groups.has(conflict.type)) groups.set(conflict.type, []);
+        groups.get(conflict.type).push(conflict);
+      }
+      return groups;
+    }
+
+    /* 只从纯数字 involved 中提取作业序号，任务# 和说明文本不参与甘特匹配。 */
+    function parseSerialNumbers(involved) {
+      if (!/^[\d,\s，]+$/.test(involved)) return [];
+      return involved
+        .split(/[,，]/)
+        .map(value => Number(value.trim()))
+        .filter(Number.isFinite);
+    }
+
+    /* 统计 KPI 使用去重后的报表序号、任务#ID 或说明性引用。 */
+    function uniqueInvolvedCount() {
+      const identifiers = new Set();
+      for (const conflict of state.conflicts) {
+        if (/^[\d,\s，]+$/.test(conflict.involved)) {
+          for (const serial of parseSerialNumbers(conflict.involved)) {
+            identifiers.add(String(serial));
+          }
+        } else if (conflict.involved) {
+          identifiers.add(conflict.involved);
+        }
+      }
+      return identifiers.size;
+    }
+
+    /* 将 involved 转成可读文本，同时保留后端给出的任务#或说明文本。 */
+    function showInvolved(value) {
+      if (/^[\d,\s，]+$/.test(value)) {
+        const serials = parseSerialNumbers(value);
+        return serials.map(serial => `序 ${serial}`).join("、");
+      }
+      return value || "未提供";
+    }
+
+    /* 将冲突类型颜色写入 CSS 变量，卡片、徽标和规则条目共用同一套主题。 */
+    function applyTypeTheme(container, type) {
+      const meta = CONFLICT_TYPES[type] || {
+        color: "var(--brand)",
+        soft: "var(--brand-soft)"
+      };
+      container.style.setProperty("--type-color", meta.color);
+      container.style.setProperty("--type-soft", meta.soft);
+    }
+
+    /* 创建严重度徽标，并说明等级来自接口还是本地规则映射。 */
+    function makeSeverityBadge(conflict) {
+      const badge = createElement(
+        "span",
+        "severity-badge",
+        conflict.severity.label
+      );
+      badge.dataset.severity = conflict.severity.level;
+      badge.title =
+        conflict.severity.source === "api"
+          ? "严重度来自接口 severity 字段"
+          : "接口未提供 severity，当前使用本地规则分级";
+      return badge;
+    }
+
+    /* =========================================================
+       七、规则与数据源展示
+       明确区分实时接口、演示数据和本地规则索引，避免混淆数据来源。
+       ========================================================= */
+    function renderSource() {
+      const isDemo = state.dataSource === "demo";
+      elements.sourcePill.dataset.source = isDemo ? "demo" : "api";
+      elements.sourceText.textContent = isDemo ? "演示数据" : "实时接口";
+      elements.fallbackNotice.hidden = !isDemo;
+
+      if (isDemo) {
+        const reason = state.errorMessage ? `原因：${state.errorMessage}。` : "";
+        elements.fallbackNoticeText.textContent =
+          `${reason}当前使用内置的 9 月 23 日演示数据，页面结构与接口接入逻辑已保留。`;
+      }
+    }
+
+    /* 生成六类规则目录；未知类型单独追加，提示接口与前端规则不同步。 */
+    function renderRuleCatalog() {
+      elements.ruleCatalog.replaceChildren();
+
+      for (const [type, rule] of Object.entries(RULE_CATALOG)) {
+        const entry = createElement("article", "rule-entry");
+        applyTypeTheme(entry, type);
+
+        const head = createElement("div", "rule-entry-head");
+        head.append(
+          createElement("h3", "rule-entry-title", `${type} · ${rule.title}`),
+          createElement("span", "rule-status", rule.status)
+        );
+
+        const meta = createElement("dl", "rule-entry-meta");
+        const rows = [
+          ["规则编号", rule.code],
+          ["条文索引", rule.article],
+          ["展示级别", SEVERITY_META[rule.severity]?.label || "提示"],
+          ["触发条件", rule.trigger],
+          ["当前冲突", `${countByType(type)} 条`]
+        ];
+        for (const [label, value] of rows) {
+          meta.append(
+            createElement("dt", "", label),
+            createElement("dd", "", value)
+          );
+        }
+
+        entry.append(head, meta);
+        elements.ruleCatalog.append(entry);
+      }
+
+      const unknownCount =
+        state.conflicts.length -
+        state.conflicts.filter(conflict =>
+          Boolean(RULE_CATALOG[conflict.type])
+        ).length;
+      if (unknownCount > 0) {
+        const entry = createElement("article", "rule-entry");
+        const head = createElement("div", "rule-entry-head");
+        head.append(
+          createElement(
+            "h3",
+            "rule-entry-title",
+            `${UNKNOWN_RULE.title} · ${unknownCount} 条`
+          ),
+          createElement("span", "rule-status", UNKNOWN_RULE.status)
+        );
+        entry.append(
+          head,
+          createElement("p", "drawer-copy", UNKNOWN_RULE.trigger)
+        );
+        elements.ruleCatalog.append(entry);
+      }
+    }
+
+    /* 打开规则抽屉并暂时锁定页面滚动区域。 */
+    function openRuleDrawer() {
+      renderRuleCatalog();
+      elements.ruleBackdrop.hidden = false;
+      elements.openRulesButton.setAttribute("aria-expanded", "true");
+      document.body.style.overflow = "hidden";
+      elements.closeRulesButton.focus();
+    }
+
+    /* 关闭规则抽屉，恢复页面滚动并返回规则按钮焦点。 */
+    function closeRuleDrawer() {
+      elements.ruleBackdrop.hidden = true;
+      elements.openRulesButton.setAttribute("aria-expanded", "false");
+      document.body.style.overflow = "";
+      elements.openRulesButton.focus();
+    }
+
+    /* =========================================================
+       八、冲突列表渲染
+       指标、筛选、分组和卡片都由同一份 state.conflicts 生成。
+       ========================================================= */
+    function renderMetrics() {
+      const handled = state.conflicts.filter(
+        conflict => statusOf(conflict) === "handled"
+      ).length;
+      const pending = state.conflicts.filter(
+        conflict => statusOf(conflict) === "pending"
+      ).length;
+      const typeCount = new Set(
+        state.conflicts.map(conflict => conflict.type)
+      ).size;
+
+      elements.metricTotal.textContent = String(state.conflicts.length);
+      elements.metricTypes.textContent = String(typeCount);
+      elements.metricInvolved.textContent = String(uniqueInvolvedCount());
+      elements.metricPending.textContent = String(pending);
+      elements.metricHandled.textContent = String(handled);
+    }
+
+    /* 生成“全部 + 六类冲突”筛选按钮，并同步规则覆盖率。 */
+    function renderRuleFilters() {
+      elements.ruleFilters.replaceChildren();
+
+      const allButton = createFilterChip("all", "全部", state.conflicts.length);
+      elements.ruleFilters.append(allButton);
+
+      for (const [type, rule] of Object.entries(RULE_CATALOG)) {
+        const count = countByType(type);
+        const button = createFilterChip(type, type, count);
+        button.title = `${rule.code} · ${rule.article} · ${rule.status}`;
+        elements.ruleFilters.append(button);
+      }
+
+      const known = state.conflicts.filter(conflict =>
+        Boolean(RULE_CATALOG[conflict.type])
+      ).length;
+      elements.ruleCoverage.textContent =
+        `规则覆盖 ${known}/${state.conflicts.length}`;
+      elements.pendingOnlyButton.setAttribute(
+        "aria-pressed",
+        String(state.pendingOnly)
+      );
+    }
+
+    /* 单个筛选按钮保存类型值、显示数量和当前选中状态。 */
+    function createFilterChip(value, label, count) {
+      const button = createElement("button", "filter-chip");
+      button.type = "button";
+      button.dataset.typeFilter = value;
+      button.classList.toggle("is-active", state.activeType === value);
+      button.append(
+        document.createTextNode(label),
+        createElement("span", "filter-count", String(count))
+      );
+      button.setAttribute("aria-pressed", String(state.activeType === value));
+      return button;
+    }
+
+    /* 根据加载状态和冲突总数控制加载中、空状态及列表容器是否显示。 */
+    function renderListState() {
+      elements.listLoading.hidden = !state.loading;
+      elements.listEmpty.hidden = state.loading || state.conflicts.length > 0;
+      elements.conflictGroups.hidden = state.loading || state.conflicts.length === 0;
+      elements.refreshButton.disabled = state.loading;
+    }
+
+    /* 列表总入口：应用筛选、按类型分组，再生成每一组冲突卡片。 */
+    function renderList() {
+      elements.conflictGroups.replaceChildren();
+      renderRuleFilters();
+
+      const visible = filteredConflicts();
+      const groups = groupConflicts(visible);
+
+      if (visible.length === 0 && state.conflicts.length > 0) {
+        elements.conflictGroups.append(
+          createElement(
+            "div",
+            "filter-empty",
+            "当前筛选条件下没有冲突。可以切换类型，或关闭“仅看待确认”。"
+          )
+        );
+      }
+
+      for (const [type, conflicts] of groups) {
+        const group = createElement("section", "conflict-group");
+
+        const heading = createElement("h3", "group-heading");
+        const badge = createElement("span", "type-badge", type);
+        applyTypeTheme(badge, type);
+        heading.append(badge, createElement("span", "group-count", String(conflicts.length)));
+
+        const grid = createElement("div", "conflict-grid");
+        for (const conflict of conflicts) {
+          grid.append(createListCard(conflict));
+        }
+
+        group.append(heading, grid);
+        elements.conflictGroups.append(group);
+      }
+
+      renderListState();
+      renderMetrics();
+    }
+
+    /* 单条冲突卡片展示类型、人工状态、描述、建议、涉及作业和规则索引。 */
+    function createListCard(conflict) {
+      const status = statusOf(conflict);
+      const card = createElement("article", "conflict-card");
+      applyTypeTheme(card, conflict.type);
+      card.dataset.openConfirmKey = conflict.key;
+      card.tabIndex = 0;
+      card.setAttribute("role", "button");
+      card.setAttribute(
+        "aria-label",
+        `前往人工确认：${conflict.description}`
+      );
+      card.title = "点击前往人工确认台处理该冲突";
+
+      const topline = createElement("div", "card-topline");
+      topline.append(createElement("span", "type-badge", conflict.type));
+      const statuses = createElement("div", "card-statuses");
+      statuses.append(makeSeverityBadge(conflict));
+      if (conflict.warnings.length > 0) {
+        const integrity = createElement(
+          "span",
+          "integrity-badge",
+          "数据待核查"
+        );
+        integrity.title = conflict.warnings.join("、");
+        statuses.append(integrity);
+      }
+      const localStatus = createElement(
+        "span",
+        "local-status",
+        STATUS_LABELS[status]
+      );
+      localStatus.dataset.status = status;
+      statuses.append(localStatus);
+      topline.append(statuses);
+
+      const description = createElement(
+        "p",
+        "conflict-description",
+        conflict.description
+      );
+
+      const suggestion = createElement("p", "conflict-suggestion");
+      suggestion.append(
+        createElement("strong", "", "建议"),
+        createElement("span", "", conflict.suggestion)
+      );
+
+      const footer = createElement("div", "card-footer");
+      const metaCluster = createElement("div", "meta-cluster");
+      const involved = createElement("span", "involved");
+      involved.append(
+        createElement("strong", "", "涉及作业："),
+        document.createTextNode(showInvolved(conflict.involved))
+      );
+      metaCluster.append(
+        involved,
+        createElement(
+          "span",
+          "rule-reference",
+          conflict.ruleRef
+            ? `依据：${conflict.ruleRef}`
+            : `规则索引：${conflict.rule.code} · ${conflict.rule.article}（本地映射）`
+        )
+      );
+
+      const statusTag = createElement("span", "status-tag", STATUS_LABELS[status]);
+      statusTag.dataset.status = status;
+      const footerActions = createElement("div", "card-footer-actions");
+      footerActions.append(
+        statusTag,
+        createElement("span", "card-jump", "去确认 →")
+      );
+      footer.append(metaCluster, footerActions);
+
+      card.append(topline, description, suggestion, footer);
+      return card;
+    }
+
+    /* =========================================================
+       九、甘特时间计算
+       全部时间先转换为当天分钟数，再换算成相对于天窗宽度的百分比。
+       ========================================================= */
+    function toMinutes(time) {
+      const [hour, minute] = String(time).split(":").map(Number);
+      if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null;
+      return hour * 60 + minute;
+    }
+
+    /* 生成时间轴刻度偏移量，末尾补上天窗结束点。 */
+    function makeTicks(start, duration, step = 15) {
+      const ticks = [];
+      for (let offset = 0; offset < duration; offset += step) {
+        ticks.push(offset);
+      }
+      if (ticks[ticks.length - 1] !== duration) ticks.push(duration);
+      return ticks;
+    }
+
+    /* 将分钟数还原为 HH:MM，支持跨过午夜的取模计算。 */
+    function formatMinuteOfDay(totalMinutes) {
+      const normalized = ((totalMinutes % 1440) + 1440) % 1440;
+      const hour = Math.floor(normalized / 60);
+      const minute = normalized % 60;
+      return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+    }
+
+    /*
+     * 多天窗甘特渲染：
+     * 1. 取所有天窗和作业时间的并集，生成一个全局时间轴。
+     * 2. 先绘制每个天窗的范围和固定开销截止线，再绘制窗口内作业。
+     * 3. 作业条按工区分色；后端冲突涉及的报表序号使用红色描边。
+     * 4. 前端不复算冲突，只使用 /api/conflicts 返回的 involved。
+     */
+    function renderGantt() {
+      const windows = state.windows.length
+        ? state.windows
+        : SAMPLE_WINDOWS.map(normalizeWindow);
+      const tasks = state.tasks;
+      const windowTimes = windows.flatMap(window => [
+        toMinutes(window.start),
+        toMinutes(window.end)
+      ]);
+      const taskTimes = tasks.flatMap(task => [
+        toMinutes(task.start),
+        toMinutes(task.end)
+      ]);
+      const validTimes = [...windowTimes, ...taskTimes].filter(
+        value => value !== null && Number.isFinite(value)
+      );
+
+      let lo = validTimes.length ? Math.min(...validTimes) : 7 * 60 + 30;
+      let hi = validTimes.length ? Math.max(...validTimes) : 9 * 60 + 20;
+      lo = Math.floor(lo / 30) * 30;
+      hi = Math.ceil(hi / 30) * 30;
+      const span = Math.max(hi - lo, 30);
+      const pct = minute => ((minute - lo) / span) * 100;
+
+      const firstWindow = windows[0] || normalizeWindow({}, 0);
+      const durations = windows.map(window => {
+        const duration = toMinutes(window.end) - toMinutes(window.start);
+        return Math.max(duration, 0);
+      });
+      const effectiveDurations = windows.map((window, index) =>
+        Math.max(durations[index] - window.overheadMinutes, 0)
+      );
+      const overheads = [...new Set(windows.map(window => window.overheadMinutes))];
+      const dates = [...new Set(windows.map(window => window.date))];
+      const lines = [...new Set(windows.map(window => window.line))];
+
+      elements.windowTitle.textContent =
+        `${windows.length} 个天窗 · ${dates.join("、")}`;
+      elements.windowRoute.textContent =
+        `${lines.join("、")} · ${firstWindow.station}`;
+      elements.windowRange.textContent =
+        `${formatMinuteOfDay(lo)}—${formatMinuteOfDay(hi)}`;
+      elements.windowDurationNote.textContent =
+        `各窗 ${durations.join(" / ")} 分钟`;
+      elements.windowOverheadValue.textContent =
+        overheads.length === 1
+          ? `${overheads[0]} 分钟`
+          : `${Math.min(...overheads)}—${Math.max(...overheads)} 分钟`;
+      elements.windowEffectiveValue.textContent =
+        `${effectiveDurations.join(" / ")} 分钟`;
+      elements.windowEffectiveNote.textContent =
+        windows.length === 1 ? "首个天窗有效作业时间" : "各天窗分别计算";
+      elements.taskCount.textContent =
+        `${tasks.length} 条作业 · ${windows.length} 个天窗`;
+      elements.taskSourceText.textContent =
+        `${state.taskSource === "api" ? "任务接口" : "任务演示"} · ${
+          state.windowSource === "api" ? "天窗接口" : "天窗演示"
+        }`;
+
+      const board = elements.ganttBoard;
+      board.replaceChildren();
+
+      const axisRow = createElement("div", "gantt-axis-row");
+      const axisLabel = createElement("div", "axis-label", "天窗 / 作业");
+      const timeAxis = createElement("div", "time-axis");
+      const ticks = makeTicks(lo, span, 30);
+
+      for (const minute of ticks) {
+        const tick = createElement("span", "time-tick");
+        tick.style.left = `${pct(minute)}%`;
+        timeAxis.append(tick);
+
+        const label = createElement(
+          "span",
+          "time-tick-label",
+          formatMinuteOfDay(minute)
+        );
+        label.style.left = `${pct(minute)}%`;
+        timeAxis.append(label);
+      }
+
+      axisRow.append(axisLabel, timeAxis);
+      board.append(axisRow);
+
+      const teams = [...new Set(tasks.map(task => task.team))];
+      const teamColors = new Map(
+        teams.map((team, index) => [
+          team,
+          TEAM_COLORS[index % TEAM_COLORS.length]
+        ])
+      );
+
+      elements.ganttLegend.replaceChildren();
+      for (const team of teams) {
+        const item = createElement("span", "legend-item");
+        const swatch = createElement("span", "legend-swatch");
+        swatch.style.background = teamColors.get(team);
+        item.append(swatch, document.createTextNode(team));
+        elements.ganttLegend.append(item);
+      }
+      const conflictLegend = createElement("span", "legend-item");
+      conflictLegend.append(
+        createElement("span", "legend-swatch is-conflict"),
+        document.createTextNode("涉及冲突")
+      );
+      const cutoffLegend = createElement("span", "legend-item");
+      cutoffLegend.append(
+        createElement("span", "legend-swatch is-cutoff"),
+        document.createTextNode("有效作业截止")
+      );
+      elements.ganttLegend.append(conflictLegend, cutoffLegend);
+
+      const conflictSerials = new Set(
+        state.conflicts.flatMap(conflict =>
+          parseSerialNumbers(conflict.involved)
+        )
+      );
+
+      for (const window of windows) {
+        const windowStart = toMinutes(window.start);
+        const windowEnd = toMinutes(window.end);
+        const cutAt = windowEnd - window.overheadMinutes;
+
+        const windowRow = createElement("div", "gantt-window-row");
+        const windowLabel = createElement("div", "window-row-label");
+        windowLabel.append(
+          createElement(
+            "span",
+            "window-row-title",
+            `${window.line} · ${window.direction}`
+          ),
+          createElement(
+            "span",
+            "window-row-meta",
+            `${window.station} · ${window.start}—${window.end} · ${
+              windowEnd - windowStart
+            } 分钟`
+          )
+        );
+
+        const windowTrack = createElement("div", "task-track");
+        for (const minute of ticks) {
+          const gridLine = createElement("span", "grid-line");
+          gridLine.style.left = `${pct(minute)}%`;
+          windowTrack.append(gridLine);
+        }
+
+        const band = createElement("span", "window-band");
+        band.style.left = `${pct(windowStart)}%`;
+        band.style.width = `${pct(windowEnd) - pct(windowStart)}%`;
+        windowTrack.append(band);
+
+        const cutoff = createElement("span", "cutoff-line");
+        cutoff.style.left = `${pct(cutAt)}%`;
+        windowTrack.append(cutoff);
+
+        const cutoffFlag = createElement(
+          "span",
+          "cutoff-flag",
+          `${windowEnd - windowStart - window.overheadMinutes} 分钟`
+        );
+        cutoffFlag.style.left = `${pct(cutAt)}%`;
+        windowTrack.append(cutoffFlag);
+
+        windowRow.append(windowLabel, windowTrack);
+        board.append(windowRow);
+
+        const windowTasks = tasks.filter(task => task.windowId === window.id);
+        for (const task of windowTasks) {
+          const taskStart = toMinutes(task.start);
+          const taskEnd = toMinutes(task.end);
+          if (taskStart === null || taskEnd === null) continue;
+
+          const clippedStart = Math.max(windowStart, taskStart);
+          const clippedEnd = Math.min(windowEnd, taskEnd);
+          const hasVisibleRange = clippedEnd > clippedStart;
+          const isConflict = conflictSerials.has(task.serial);
+
+          const row = createElement(
+            "div",
+            isConflict ? "gantt-row is-conflict" : "gantt-row"
+          );
+
+          const label = createElement("div", "task-label");
+          label.append(
+            createElement(
+              "span",
+              "task-name",
+              `${task.serial} · ${task.unit}`
+            ),
+            createElement(
+              "span",
+              "task-meta",
+              `${task.team} · ${task.item} · ${task.start}—${task.end}`
+            )
+          );
+
+          const track = createElement("div", "task-track");
+          for (const minute of ticks) {
+            const gridLine = createElement("span", "grid-line");
+            gridLine.style.left = `${pct(minute)}%`;
+            track.append(gridLine);
+          }
+
+          if (hasVisibleRange) {
+            const bar = createElement(
+              "div",
+              isConflict ? "task-bar is-conflict" : "task-bar"
+            );
+            bar.style.left = `${pct(clippedStart)}%`;
+            bar.style.width = `${Math.max(
+              pct(clippedEnd) - pct(clippedStart),
+              0.5
+            )}%`;
+            bar.style.background = teamColors.get(task.team);
+            bar.title =
+              `${task.team} ${task.unit} ${task.start}—${task.end}`;
+            bar.append(
+              createElement(
+                "div",
+                "task-bar-label",
+                `${task.start}—${task.end}`
+              )
+            );
+            track.append(bar);
+          }
+
+          const taskCutoff = createElement("span", "cutoff-line");
+          taskCutoff.style.left = `${pct(cutAt)}%`;
+          track.append(taskCutoff);
+
+          row.append(label, track);
+          board.append(row);
+        }
+      }
+    }
+
+    /* =========================================================
+       十、人工确认与导出
+       状态按稳定键更新；撤销时删除记录，导出时生成包含全部冲突的快照。
+       ========================================================= */
+    function setDecision(conflict, status) {
+      if (status === "pending") {
+        delete state.decisions[conflict.key];
+      } else {
+        state.decisions[conflict.key] = {
+          type: conflict.type,
+          involved: conflict.involved,
+          description: conflict.description,
+          status,
+          updatedAt: new Date().toISOString()
+        };
+      }
+
+      saveDecisions();
+      renderConfirm();
+      renderList();
+      showToast(
+        status === "pending"
+          ? "已撤销本条冲突的人工处理状态。"
+          : `已标记为“${STATUS_LABELS[status]}”。`
+      );
+    }
+
+    /* 渲染确认台卡片，并同步已处理、已忽略和待确认统计。 */
+    function renderConfirm() {
+      elements.confirmList.replaceChildren();
+
+      const all = state.conflicts;
+      const handled = all.filter(
+        conflict => statusOf(conflict) === "handled"
+      ).length;
+      const ignored = all.filter(
+        conflict => statusOf(conflict) === "ignored"
+      ).length;
+      const pending = all.length - handled - ignored;
+      const visible = all.filter(conflict => {
+        const status = statusOf(conflict);
+        return (
+          state.confirmFilter === "all" ||
+          (state.confirmFilter === "pending" && status === "pending") ||
+          (state.confirmFilter === "handled" && status === "handled") ||
+          (state.confirmFilter === "ignored" && status === "ignored")
+        );
+      });
+
+      if (visible.length === 0) {
+        elements.confirmList.append(
+          createElement(
+            "div",
+            "filter-empty",
+            "当前状态下没有冲突。可以切换到“全部”查看其他记录。"
+          )
+        );
+      }
+
+      for (const conflict of visible) {
+        const status = statusOf(conflict);
+        const card = createElement("article", "confirm-card");
+        card.dataset.status = status;
+        card.dataset.confirmCardKey = conflict.key;
+        card.tabIndex = -1;
+
+        const copy = createElement("div");
+        const typeBadge = createElement("span", "type-badge", conflict.type);
+        applyTypeTheme(typeBadge, conflict.type);
+        copy.append(
+          typeBadge,
+          document.createTextNode(" "),
+          makeSeverityBadge(conflict),
+          createElement("h3", "confirm-title", conflict.description),
+          createElement(
+            "p",
+            "confirm-meta",
+            `涉及作业：${showInvolved(conflict.involved)} · 当前状态：${STATUS_LABELS[status]}`
+          )
+        );
+
+        const actions = createElement("div", "confirm-actions");
+        actions.append(
+          makeDecisionButton(conflict, "handled", "标记已处理", "action-handled"),
+          makeDecisionButton(conflict, "ignored", "忽略", "action-ignored"),
+          makeDecisionButton(conflict, "pending", "撤销", "")
+        );
+
+        card.append(copy, actions);
+        elements.confirmList.append(card);
+      }
+
+      elements.decisionTotal.textContent = String(all.length);
+      elements.decisionHandled.textContent = String(handled);
+      elements.decisionIgnored.textContent = String(ignored);
+      elements.decisionPending.textContent = String(pending);
+      elements.confirmCountAll.textContent = String(all.length);
+      elements.confirmCountPending.textContent = String(pending);
+      elements.confirmCountHandled.textContent = String(handled);
+      elements.confirmCountIgnored.textContent = String(ignored);
+
+      elements.confirmFilters
+        .querySelectorAll("[data-confirm-filter]")
+        .forEach(button => {
+          const active =
+            button.dataset.confirmFilter === state.confirmFilter;
+          button.classList.toggle("is-active", active);
+          button.setAttribute("aria-pressed", String(active));
+        });
+    }
+
+    /* 创建带冲突键和状态值的操作按钮，由统一事件委托处理点击。 */
+    function makeDecisionButton(conflict, status, text, className) {
+      const button = createElement(
+        "button",
+        `button button-small ${className}`.trim(),
+        text
+      );
+      button.type = "button";
+      button.dataset.conflictKey = conflict.key;
+      button.dataset.status = status;
+      return button;
+    }
+
+    /* 导出当前确认快照；未处理的冲突也会以 pending 状态写入文件。 */
+    function exportDecisions() {
+      const rows = state.conflicts.map(conflict => {
+        const decision = decisionOf(conflict);
+        return {
+          id: conflict.id || null,
+          conflictKey: conflict.key,
+          type: conflict.type,
+          involved: conflict.involved,
+          severity: conflict.severity.label,
+          severitySource: conflict.severity.source,
+          ruleRef: conflict.ruleRef || null,
+          ruleIndex: `${conflict.rule.code} · ${conflict.rule.article}`,
+          description: conflict.description,
+          status: decision?.status || "pending",
+          updatedAt: decision?.updatedAt || null
+        };
+      });
+
+      const dates = [...new Set(state.windows.map(window => window.date))];
+      const dateTag = dates[0] || "unknown-date";
+      const payload = {
+        exportedAt: new Date().toISOString(),
+        windows: state.windows.map(window => ({
+          id: window.id,
+          date: window.date,
+          line: window.line,
+          direction: window.direction,
+          station: window.station,
+          start: window.start,
+          end: window.end
+        })),
+        total: rows.length,
+        records: rows
+      };
+
+      const blob = new Blob(
+        [JSON.stringify(payload, null, 2)],
+        { type: "application/json;charset=utf-8" }
+      );
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `skylight-decisions-${dateTag}.json`;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      showToast("确认记录已导出。");
+    }
+
+    /* 清空全部本地确认状态，重置前必须由操作人员明确确认。 */
+    function resetDecisions() {
+      if (state.conflicts.every(conflict => statusOf(conflict) === "pending")) {
+        showToast("当前没有需要重置的确认记录。");
+        return;
+      }
+      if (!window.confirm("清空全部人工确认记录？此操作只影响当前浏览器。")) {
+        return;
+      }
+      state.decisions = {};
+      saveDecisions();
+      renderList();
+      renderConfirm();
+      showToast("全部人工确认记录已重置。");
+    }
+
+    /*
+     * 从冲突卡片进入确认台：
+     * 先切回“全部”状态以确保目标可见，再通过 hash 路由进入确认页。
+     * focusConflictKey 只保存本次导航目标，不参与冲突键或确认状态。
+     */
+    function openConfirmForKey(conflictKey) {
+      if (!state.conflicts.some(conflict => conflict.key === conflictKey)) {
+        showToast("未找到对应的冲突记录。");
+        return;
+      }
+
+      state.focusConflictKey = conflictKey;
+      state.confirmFilter = "all";
+      renderConfirm();
+
+      if (state.route === "confirm" || window.location.hash === "#confirm") {
+        applyRoute();
+      } else {
+        window.location.hash = "confirm";
+      }
+    }
+
+    /* 路由切到确认页后，滚动并高亮本次目标冲突卡片。 */
+    function focusConfirmConflict(conflictKey) {
+      window.requestAnimationFrame(() => {
+        const target = [...elements.confirmList.querySelectorAll(".confirm-card")]
+          .find(card => card.dataset.confirmCardKey === conflictKey);
+
+        if (!target) return;
+
+        const reduceMotion = window.matchMedia(
+          "(prefers-reduced-motion: reduce)"
+        ).matches;
+        target.classList.add("is-targeted");
+        target.scrollIntoView({
+          behavior: reduceMotion ? "auto" : "smooth",
+          block: "center"
+        });
+        target.focus({ preventScroll: true });
+
+        window.setTimeout(() => {
+          target.classList.remove("is-targeted");
+        }, 2600);
+
+        state.focusConflictKey = "";
+      });
+    }
+
+    /* =========================================================
+       十一、路由、提示与初始化
+       页面切换使用 hash；每次完整渲染都会覆盖数据源、三页和规则目录。
+       ========================================================= */
+    function renderAll() {
+      renderSource();
+      renderList();
+      renderGantt();
+      renderConfirm();
+      renderRuleCatalog();
+    }
+
+    /* 只接受 list、gantt、confirm 三个合法路由，其他值回退到列表页。 */
+    function currentRoute() {
+      const requested = String(window.location.hash || "#list")
+        .replace(/^#\/?/, "")
+        .trim();
+      return ["list", "gantt", "confirm"].includes(requested)
+        ? requested
+        : "list";
+    }
+
+    /* 切换页面可见性，同时更新导航选中状态和 aria-current。 */
+    function applyRoute() {
+      state.route = currentRoute();
+      if (window.location.hash !== `#${state.route}`) {
+        history.replaceState(null, "", `#${state.route}`);
+      }
+
+      document.querySelectorAll("[data-view]").forEach(view => {
+        view.hidden = view.dataset.view !== state.route;
+      });
+
+      document.querySelectorAll("[data-route]").forEach(link => {
+        const active = link.dataset.route === state.route;
+        link.classList.toggle("is-active", active);
+        if (active) {
+          link.setAttribute("aria-current", "page");
+        } else {
+          link.removeAttribute("aria-current");
+        }
+      });
+
+      window.scrollTo({ top: 0, behavior: "instant" });
+
+      if (state.route === "confirm" && state.focusConflictKey) {
+        focusConfirmConflict(state.focusConflictKey);
+      }
+    }
+
+    /* 显示短暂反馈；新的提示会覆盖上一条并重新计时。 */
+    function showToast(message) {
+      window.clearTimeout(toastTimer);
+      elements.toast.textContent = message;
+      elements.toast.classList.add("is-visible");
+      toastTimer = window.setTimeout(() => {
+        elements.toast.classList.remove("is-visible");
+      }, 2400);
+    }
+
+    /* =========================================================
+       十二、事件绑定
+       刷新、导出、筛选、规则抽屉和确认操作集中绑定，便于检查交互入口。
+       ========================================================= */
+    elements.refreshButton.addEventListener("click", async () => {
+      showToast("正在重新读取冲突数据…");
+      await loadConflicts();
+    });
+
+    /* 导出按钮只导出当前页面已经加载并完成状态合并的冲突快照。 */
+    elements.exportButton.addEventListener("click", exportDecisions);
+    elements.resetButton.addEventListener("click", resetDecisions);
+
+    /* 冲突类型筛选使用事件委托，后续增加规则类型时不需要重新绑定按钮。 */
+    elements.ruleFilters.addEventListener("click", event => {
+      const button = event.target.closest("[data-type-filter]");
+      if (!button) return;
+      state.activeType = button.dataset.typeFilter;
+      renderList();
+    });
+
+    /* “仅看待确认”是纯视图筛选，不修改 localStorage 中的处理结果。 */
+    elements.pendingOnlyButton.addEventListener("click", () => {
+      state.pendingOnly = !state.pendingOnly;
+      renderList();
+    });
+
+    /* 确认台状态筛选与列表类型筛选互不影响，只作用于人工确认卡片。 */
+    elements.confirmFilters.addEventListener("click", event => {
+      const button = event.target.closest("[data-confirm-filter]");
+      if (!button) return;
+      state.confirmFilter = button.dataset.confirmFilter;
+      renderConfirm();
+    });
+
+    /* 规则目录支持按钮打开、关闭按钮、遮罩点击和 Esc 四种退出方式。 */
+    elements.openRulesButton.addEventListener("click", openRuleDrawer);
+    elements.closeRulesButton.addEventListener("click", closeRuleDrawer);
+    elements.ruleBackdrop.addEventListener("click", event => {
+      if (event.target === elements.ruleBackdrop) closeRuleDrawer();
+    });
+
+    document.addEventListener("keydown", event => {
+      if (event.key === "Escape" && !elements.ruleBackdrop.hidden) {
+        closeRuleDrawer();
+      }
+
+      const card = event.target.closest("[data-open-confirm-key]");
+      if (
+        card &&
+        (event.key === "Enter" || event.key === " ")
+      ) {
+        event.preventDefault();
+        openConfirmForKey(card.dataset.openConfirmKey);
+      }
+    });
+
+    /* 确认台按钮同样使用事件委托，以 data-conflict-key 定位目标冲突。 */
+    document.addEventListener("click", event => {
+      const jumpCard = event.target.closest("[data-open-confirm-key]");
+      if (jumpCard) {
+        openConfirmForKey(jumpCard.dataset.openConfirmKey);
+        return;
+      }
+
+      const decisionButton = event.target.closest("[data-conflict-key]");
+      if (!decisionButton) return;
+
+      const conflict = state.conflicts.find(
+        item => item.key === decisionButton.dataset.conflictKey
+      );
+      if (!conflict) return;
+
+      setDecision(conflict, decisionButton.dataset.status);
+    });
+
+    /* 浏览器前进、后退或手动修改 hash 时，只切换视图，不重新请求接口。 */
+    window.addEventListener("hashchange", applyRoute);
+
+    /*
+     * 启动顺序：
+     * 读取本地确认状态 → 应用 hash 路由 → 并行读取冲突、任务和天窗 → 完整渲染。
+     */
+    async function bootstrap() {
+      loadDecisions();
+      applyRoute();
+      await Promise.all([loadConflicts(), loadTasks(), loadWindows()]);
+      renderAll();
+    }
+
+    /* 页面脚本位于 body 末尾，DOM 已可用，因此直接启动应用。 */
+    bootstrap();
+    })();
+  </script>
+</body>
+</html>
