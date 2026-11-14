@@ -127,6 +127,27 @@ def main() -> int:
                                                  "tasks": tasks[:2]}))
     check("入参是字符串也能解析", out.get("status") == "ok", str(out.get("status")))
 
+    # ---------------------------------------------------------- 6 taskMode（业务模式）
+    line("6. taskMode —— 业务模式分派（方案 v1.3 表 4）")
+    out = dispatch.handle_invocation({"taskMode": "PRE_REVIEW", "window": WINDOW, "tasks": tasks})
+    check("PRE_REVIEW 走通", out.get("status") == "ok", str(out.get("status")))
+    check("回显 taskMode", out.get("taskMode") == "PRE_REVIEW")
+    check("标注实际 mode", out.get("taskModeImpl") == "NEGOTIATE", str(out.get("taskModeImpl")))
+    check("给仲裁建议", (out.get("verdict") or {}).get("recommended") == "A")
+    check("给冲突清单（含分界点要求）",
+          len(out.get("conflicts") or []) == 10
+          and "分界点" in (out["conflicts"][0].get("suggestion") or ""),
+          f"{len(out.get('conflicts') or [])} 条")
+    for tm in ("SIGN_REVIEW", "BRIEF"):
+        out = dispatch.handle_invocation({"taskMode": tm, "window": WINDOW, "tasks": tasks})
+        check(f"{tm} 明确回 not_implemented",
+              out.get("status") == "not_implemented" and "PRE_REVIEW" in out["response"],
+              str(out.get("status")))
+    out = dispatch.handle_invocation({"taskMode": "pre-review", "window": WINDOW, "tasks": tasks})
+    check("小写+中划线的 taskMode 也认", out.get("taskMode") == "PRE_REVIEW")
+    out = dispatch.handle_invocation({"taskMode": "FOO", "window": WINDOW, "tasks": tasks})
+    check("未知 taskMode 报错", out.get("status") == "error")
+
     # ---------------------------------------------------------- 样例输出
     line("样例：NEGOTIATE 正文（云端返回的就是这一段）")
     print(dispatch.handle_invocation(

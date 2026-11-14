@@ -46,6 +46,13 @@ MODES = {
     "negotiate": "NEGOTIATE",
 }
 
+# 业务模式（方案 v1.3 表 4）：PRE_REVIEW 一期已交付，另两档应返回 not_implemented
+TASK_MODES = {
+    "pre-review": "PRE_REVIEW",
+    "sign-review": "SIGN_REVIEW",
+    "brief": "BRIEF",
+}
+
 
 def set_credentials() -> None:
     if not CRED.exists():
@@ -138,9 +145,12 @@ def main() -> int:
     set_credentials()
     argv = [a.lower().strip() for a in sys.argv[1:]]
     mode = next((MODES[a] for a in argv if a in MODES), "CHECK")
+    task_mode = next((TASK_MODES[a] for a in argv if a in TASK_MODES), "")
     window = {"windowStart": "07:30", "windowEnd": "09:20"}
 
-    if mode == "CHECK":
+    if task_mode:
+        payload = {"window": window, "tasks": full_payload()["tasks"], "taskMode": task_mode}
+    elif mode == "CHECK":
         payload = full_payload() if "full" in argv else minimal_payload()
     else:
         tasks = full_payload()["tasks"]
@@ -155,7 +165,9 @@ def main() -> int:
         print(f"[X] 找不到 {CLI}")
         return 1
 
-    print(f"invoke → {AGENT}（mode={mode}，{len(payload.get('tasks') or payload['plan']['tasks'])} 条作业）...\n")
+    label = f"taskMode={task_mode}" if task_mode else f"mode={mode}"
+    n_tasks = len(payload.get("tasks") or (payload.get("plan") or {}).get("tasks") or [])
+    print(f"invoke → {AGENT}（{label}，{n_tasks} 条作业）...\n")
 
     # 运行时空闲一段时间后沙箱会被回收，第一次调用常常报
     # "callback_addresses is empty"（其实是冷启动失败），紧接着再打一次就正常。
@@ -179,7 +191,7 @@ def main() -> int:
         if r.returncode == 0:
             if out:
                 print(out)
-            save_outputs(out, mode)
+            save_outputs(out, task_mode or mode)
             if attempts > 1:
                 print(f"\n（第 {attempts} 次调用成功 —— 前一次是冷启动，已自动重试）")
             return 0

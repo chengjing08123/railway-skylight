@@ -50,3 +50,6 @@ agentarts/invoke_result.txt
 agentarts/negotiate_cloud.json
 agentarts/negotiate_sample.json
 cp.txt
+# real operational data (names, phone numbers) must never be committed
+agentarts/eval/
+*.csv.private

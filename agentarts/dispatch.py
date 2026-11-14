@@ -274,11 +274,59 @@ HANDLERS = {
     MODE_NEGOTIATE: _mode_negotiate,
 }
 
+# ---------------------------------------------------------------- taskMode（业务模式）
+# 方案 v1.3 表 4：对外讲的是业务模式，不是技术开关。
+# 一期只交付 PRE_REVIEW（编制预审），落地形态是「编排 → 核查 → 仲裁」整条链路。
+TASK_MODES = ("PRE_REVIEW", "SIGN_REVIEW", "BRIEF")
+TASK_MODE_ALIAS = {"PRE_REVIEW": MODE_NEGOTIATE}
+TASK_MODE_PLANNED = {"SIGN_REVIEW": "会签审查", "BRIEF": "点前交底"}
+
+
+def _dispatch_task_mode(req: Dict[str, Any], task_mode: str) -> Dict[str, Any]:
+    """按业务模式分派。未交付的模式要给结构化答复，不能假装实现了。"""
+    if task_mode not in TASK_MODES:
+        return {
+            "taskMode": task_mode, "status": "error", "conflictCount": 0,
+            "response": f"未知 taskMode「{task_mode}」。一期可用：PRE_REVIEW"
+                        f"（SIGN_REVIEW / BRIEF 为二期）。",
+        }
+
+    if task_mode not in TASK_MODE_ALIAS:
+        name = TASK_MODE_PLANNED.get(task_mode, task_mode)
+        return {
+            "taskMode": task_mode,
+            "status": "not_implemented",
+            "plannedFor": "二期",
+            "available": ["PRE_REVIEW"],
+            "response": (f"{task_mode}（{name}）属于二期内容，本版本未接入。"
+                         f"一期交付的是 PRE_REVIEW（编制预审）：仲裁建议 + 冲突清单 + "
+                         f"每条冲突的分界点要求。"),
+        }
+
+    tasks, window = agent_core.parse_payload(req)
+    if not tasks:
+        return {
+            "taskMode": task_mode, "status": "error", "conflictCount": 0,
+            "response": "没有收到作业列表。\n" + CONTRACT,
+        }
+
+    out = _mode_negotiate(req, tasks, window)
+    out["taskMode"] = task_mode
+    out["taskModeImpl"] = TASK_MODE_ALIAS[task_mode]   # 实际走的 mode
+    # PRE_REVIEW 的产出口径：仲裁建议 + 冲突清单 + 每条冲突的分界点要求
+    res = check_window(tasks, window, detect_duration=bool(req.get("detectDuration")))
+    out["conflicts"] = res["conflicts"]
+    return out
+
 
 # ---------------------------------------------------------------- 入口
 def handle_invocation(request: Any) -> Dict[str, Any]:
-    """一个入口，按 mode 分派到不同角色。默认 CHECK（兼容旧调用）。"""
+    """一个入口，按 mode（技术）或 taskMode（业务）分派。默认 CHECK（兼容旧调用）。"""
     req = _norm_request(request)
+
+    task_mode = str(req.get("taskMode") or "").strip().upper().replace("-", "_")
+    if task_mode:
+        return _dispatch_task_mode(req, task_mode)
     raw_mode = str(req.get("mode") or os.getenv("AGENT_DEFAULT_MODE") or DEFAULT_MODE)
     # 容错：前端可能传小写或带空格
     mode = raw_mode.strip().upper().replace("-", "_")

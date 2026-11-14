@@ -175,6 +175,18 @@ ORCHESTRATOR ──plans[A,B]（含 cost）──► CHECKER
 3. **分派逻辑与 SDK 分离** —— `dispatch.py`（可本地测）+ `app.py`（只挂 entrypoint），
    所以 `python test_modes.py` 能在不部署的情况下把五个 mode 全跑一遍。
 
+#### taskMode：对外的业务叫法（方案 v1.3 表 4）
+
+请求里带 `taskMode` 就不看 `mode`，一层名字映射，不新增实现：
+
+| taskMode | 状态 | 内部实现 | 产出 |
+|---|---|---|---|
+| `PRE_REVIEW` 编制预审 | ✅ 一期 | `NEGOTIATE` + 冲突清单 | 仲裁建议 + 每条冲突的分界点要求 + 5 条留痕 |
+| `SIGN_REVIEW` 会签审查 | ⏳ 二期 | — | `status: not_implemented` + `available: ["PRE_REVIEW"]` |
+| `BRIEF` 点前交底 | ⏳ 二期 | — | 同上 |
+
+**没做的就回 `not_implemented`**，不拿模板话术假装实现 —— 答辩时这一点比多做半档更有说服力。
+
 ### 路线 1（已落地）：三个独立运行时，客户端编排
 
 同一个镜像部署 **三次**，靠 `AGENT_DEFAULT_MODE` 区分默认角色 —— 不传 `mode` 就是该角色：
