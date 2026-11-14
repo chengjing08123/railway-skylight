@@ -1,0 +1,60 @@
+{
+  "version": "1.0",
+  "note": "规章条目库。text 是条文原文，summary 是转述摘要。原文未核实的条目只填 summary，生成时会标注「条文摘要，原文待补」—— 不编造原文。",
+  "clauses": [
+    {
+      "clause_id": "2.2.10-1",
+      "rule_code": "UNIT-01",
+      "conflict_type": "作业单元冲突",
+      "rule_ref": "2.2.10 第 1 款",
+      "applies_to": ["站内", "区间"],
+      "text": "两个及以上单位在同一区间或站内作业时，由车务段（直属站）指定主体单位并明确主体负责人。",
+      "summary": "同一区间或站内多单位作业，由车务段指定主体单位并明确负责人，须划分分界点。"
+    },
+    {
+      "clause_id": "2.2.10-1b",
+      "rule_code": "LEAD-01",
+      "conflict_type": "天窗负责人缺失",
+      "rule_ref": "2.2.10 第 1 款",
+      "applies_to": ["站内", "区间"],
+      "text": null,
+      "summary": "多单位共用天窗时，主体负责人须明确到人；天窗负责人空缺视为责任未落实。"
+    },
+    {
+      "clause_id": "2.2.1",
+      "rule_code": "TIME-01",
+      "conflict_type": "时长冲突",
+      "rule_ref": "2.2.1",
+      "applies_to": ["站内", "区间"],
+      "text": null,
+      "summary": "作业时长须与天窗时长匹配，并预留登记请点、防护设置与开通确认的固定开销。"
+    },
+    {
+      "clause_id": "2.2.8-1",
+      "rule_code": "COOP-01",
+      "conflict_type": "配合缺失",
+      "rule_ref": "2.2.8 第 1 类",
+      "applies_to": ["站内", "区间"],
+      "text": null,
+      "summary": "影响其他专业设备或作业时，须提前发出配合通知并明确配合单位与到场方式。"
+    },
+    {
+      "clause_id": "2.2.7",
+      "rule_code": "DEP-01",
+      "conflict_type": "依赖冲突",
+      "rule_ref": "2.2.7",
+      "applies_to": ["站内", "区间"],
+      "text": null,
+      "summary": "存在先后依赖的作业须明确顺序，不得形成循环依赖。"
+    },
+    {
+      "clause_id": "2.2.8-2",
+      "rule_code": "ELEC-01",
+      "conflict_type": "电气冲突",
+      "rule_ref": "2.2.8 第 2 类",
+      "applies_to": ["站内"],
+      "text": null,
+      "summary": "停电范围与带电作业需求不得矛盾；同一供电臂上须统一停送电安排。"
+    }
+  ]
+}
