@@ -46,10 +46,19 @@
   "affectedTeam": "萍乡检查工区",
   "movedCount": 6,
   "workloadRisk": "6 条检查作业需另排天窗，可能延后 1 天",
-  "safetyGain": "重叠消除，天窗内无跨工区交叉作业",
+  "safetyGain": "重叠减少，天窗内跨工区交叉作业减少",
   "quantified": {"冲突": "归零", "延期作业": 6, "延期天数": 1}
 }
 ```
+
+**退让方怎么选（不写死工区）**：
+
+1. 工区名里带「检查」的优先 —— 检查作业可延后，不影响线路维修主体；
+2. 没有检查工区，取**作业条数最少**的工区（影响面最小）；
+3. 只有一个工区，明确标「无可退让」，不硬凑方案。
+
+**「冲突」那一栏不归编排者写。** 编排者只说「移出谁」，核查者算完通过
+`fill_cost()` 回填 —— 编排者不给自己打分，这是角色分离的又一处落点。
 
 ### 2.2 CHECKER（核查者）
 
@@ -193,9 +202,9 @@ ORCHESTRATOR ──plans[A,B]（含 cost）──► CHECKER
 
 | Agent 名 | 默认角色 | Runtime ID（2026-11-15 重建） |
 |---|---|---|
-| `skylight-orchestrator` | ORCHESTRATE | `ddb1f6dc-e9f5-4f7f-8b79-53fe8ffc7efc` |
+| `skylight-orchestrator` | ORCHESTRATE | 同上 |
 | `skylight-check` | CHECK | `5248b6ad-381f-493e-90f8-37cd2dde6254` |
-| `skylight-arbiter` | ARBITRATE | `bd642d88-802b-4bfd-9c12-00b8bc37252e` |
+| `skylight-arbiter` | ARBITRATE | 同上 |
 
 串联放在**客户端**（`negotiate_cloud.py`），而不是运行时之间互调：
 
