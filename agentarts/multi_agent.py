@@ -53,52 +53,100 @@ class Trace:
 
 # ---------------------------------------------------------------- ① 编排
 def orchestrate(tasks: list[dict], window: dict) -> list[dict]:
-    """把「全员占满整个天窗」拆成两套真正不同的候选方案。
+    """把「全员占满整个天窗」拆成两套价值取向不同的候选方案。
 
-    真实数据里 12 条作业的时段都填成 07:30—09:20（整窗），所以**任何时段压缩都
-    消不掉重叠** —— 压缩后仍然落满窗作业的区间里。能消除重叠的只有两条路：
+    **不写死任何工区名和数字** —— 换一个天窗、换一批作业，照样能用：
 
-      A 顺延：「检查工区」6 条作业移出本天窗，另排
-        —— 冲突归零，代价是这 6 条作业延期，检查计划被打断
-      B 分界：全部保留，冲突全部转为「需人工划分界点」
-        —— 作业量不损失，代价是 10 条重叠仍需车务段逐条协调，安全风险未消除
+      A 顺延：把「退让方」的作业移出本天窗，另排
+        —— 冲突下降，代价是这些作业延期
+      B 分界：全部保留，冲突转为「需人工划分界点」
+        —— 作业量不损失，代价是重叠仍需逐条协调
 
-    这不是两个技术方案，是两个价值取向：**安全优先 vs 作业量优先**。
-    方案文档里「代价是必填字段，不是描述性文字」，指的就是这一栏。
+    退让方怎么选：
+      1. 优先工区名里带「检查」的（检查作业可延后，不影响线路维修主体）；
+      2. 没有检查工区，就取「作业条数最少」的工区（影响面最小）；
+      3. 只有一个工区，就明确标「无可退让」，不硬凑方案。
+
+    代价里的「冲突」一栏由核查者回填（见 fill_cost）—— 编排者提方案，核查者给数，
+    这也是角色分离的一部分：编排者不给自己打分。
     """
-    inspection = [t for t in tasks if "检查" in (t.get("team") or "")]
-    others = [t for t in tasks if "检查" not in (t.get("team") or "")]
+    team_of = lambda t: (t.get("team") or "").strip()  # noqa: E731
+    by_team: dict[str, list[dict]] = {}
+    for t in tasks:
+        by_team.setdefault(team_of(t), []).append(t)
+
+    defer_team = ""
+    if any("检查" in name for name in by_team):
+        defer_team = next(name for name in by_team if "检查" in name)
+    elif len(by_team) >= 2:
+        defer_team = min(by_team, key=lambda k: (len(by_team[k]), k))
+
+    moved = by_team.get(defer_team, []) if defer_team else []
+    moved_ids = {id(t) for t in moved}
+    kept = [t for t in tasks if id(t) not in moved_ids]
+    is_inspection = "检查" in defer_team
+
+    if defer_team and moved:
+        name_a = "检查工区顺延" if is_inspection else f"{defer_team}顺延"
+        risk_a = (f"{len(moved)} 条检查作业需另排天窗，可能延后 1 天" if is_inspection
+                  else f"{len(moved)} 条 {defer_team} 作业需另排天窗，可能延后 1 天")
+        rationale_a = (f"安全优先：宁可变更检查计划，也不留下跨工区重叠。"
+                       if is_inspection else
+                       f"安全优先：把「{defer_team}」{len(moved)} 条作业移出本天窗，优先消除重叠。")
+    else:
+        name_a = "无可退让（本窗只有一个工区）"
+        risk_a = "本天窗内只有一个工区，无法靠顺延消除冲突"
+        rationale_a = "本窗无跨工区作业，顺延方案不适用。"
 
     plan_a = {
         "planId": "A",
-        "name": "检查工区顺延",
-        "tasks": others,                       # 只留线路工区，冲突应归零
-        "movedTasks": [t["serialNo"] for t in inspection],
+        "name": name_a,
+        "tasks": kept,                          # 移出退让方，冲突应下降
+        "movedTasks": [t.get("serialNo") for t in moved],
         "cost": {
-            "affectedTeam": "萍乡检查工区",
-            "movedCount": len(inspection),
-            "workloadRisk": f"{len(inspection)} 条检查作业需另排天窗，可能延后 1 天",
-            "safetyGain": "重叠消除，天窗内无跨工区交叉作业",
-            "quantified": {"冲突": "归零", "延期作业": len(inspection), "延期天数": "1"},
+            "affectedTeam": defer_team or "—",
+            "movedCount": len(moved),
+            "workloadRisk": risk_a,
+            "safetyGain": "重叠减少，天窗内跨工区交叉作业减少" if moved
+                          else "无法改善（无可退让作业）",
+            "quantified": {"冲突": "待核查", "延期作业": len(moved),
+                           "延期天数": 1 if moved else 0},
         },
-        "rationale": "安全优先：宁可变更检查计划，也不留下 6 条严重重叠。",
+        "rationale": rationale_a,
     }
 
+    all_teams = " + ".join(sorted(by_team)) or "—"
     plan_b = {
         "planId": "B",
         "name": "保留全部 · 分区分界",
-        "tasks": tasks,                        # 全保留，靠人工划分界点化解
+        "tasks": tasks,                         # 全保留，靠人工划分界点化解
         "movedTasks": [],
         "cost": {
-            "affectedTeam": "萍乡新场线路工区 + 萍乡检查工区",
+            "affectedTeam": all_teams,
             "movedCount": 0,
-            "workloadRisk": "作业量不损失，但 6 条严重重叠需车务段逐条指定主体单位并划分界点",
+            "workloadRisk": "作业量不损失，但重叠需车务段逐条指定主体单位并划分界点",
             "safetyGain": "无 —— 重叠仍在，只靠协调与防护措施控制",
-            "quantified": {"冲突": "维持 10 条", "延期作业": 0, "延期天数": 0},
+            "quantified": {"冲突": "待核查", "延期作业": 0, "延期天数": 0},
         },
         "rationale": "作业量优先：不动计划，用协调与防护消化重叠。",
     }
     return [plan_a, plan_b]
+
+
+def fill_cost(plans: list[dict], results: list[dict]) -> None:
+    """把核查结果回填到方案的代价里（就地修改）。
+
+    编排者只说「我要移出谁」，到底能消除多少冲突，由核查者算完写回来。
+    """
+    by_id = {r.get("planId"): r for r in results}
+    for p in plans:
+        r = by_id.get(p.get("planId"))
+        if not r:
+            continue
+        n = int(r.get("conflictCount") or 0)
+        p["cost"]["quantified"]["冲突"] = "归零" if n == 0 else f"维持 {n} 条"
+        if p.get("planId") == "B" and n == 0:
+            p["cost"]["safetyGain"] = "无重叠，无需处置"
 
 # ---------------------------------------------------------------- ② 核查
 def check_plan(plan: dict, window: dict) -> dict:
@@ -223,6 +271,8 @@ def negotiate(tasks: list[dict], window: dict, session_id: str = "S-1") -> dict:
             "planId": c["planId"], "conflictCount": c["conflictCount"],
             "severe": c["severe"]})
 
+    fill_cost(plans, checked)        # 核查者给数，回填进方案的代价
+
     verdict = arbitrate(checked, plans)
     tr.msg(ROLE_CHK, ROLE_ARB, "checked", verdict["options"])
     tr.decide(ROLE_ARB, verdict["recommended"], verdict["reason"])
@@ -233,3 +283,5 @@ def negotiate(tasks: list[dict], window: dict, session_id: str = "S-1") -> dict:
         "verdict": verdict,
         "trace": tr.as_dict(),
     }
+
+

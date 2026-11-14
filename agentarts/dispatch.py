@@ -158,6 +158,8 @@ def _mode_check(request: Dict[str, Any], tasks: list[dict], window: dict) -> Dic
 def _mode_orchestrate(request: Dict[str, Any], tasks: list[dict],
                       window: dict) -> Dict[str, Any]:
     plans = multi_agent.orchestrate(tasks, window)
+    # 代价里的「冲突」由确定性核查回填 —— 编排者不给自己打分
+    multi_agent.fill_cost(plans, [multi_agent.check_plan(p, window) for p in plans])
     tr = multi_agent.Trace(_session_id(request, tasks, MODE_ORCH))
     tr.msg(multi_agent.ROLE_ORCH, multi_agent.ROLE_CHK, "plans",
            [{"planId": p["planId"], "name": p["name"], "cost": p["cost"]}
