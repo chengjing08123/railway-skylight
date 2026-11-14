@@ -637,6 +637,114 @@
       font-weight: 700;
     }
 
+    /* ===== AI 核查说明 =====
+       产品里唯一调用大模型的地方，视觉上要和「规则判定」明确区分开：
+       判定用中性色块，AI 生成用品牌色描边，并且永远带一行来源说明。 */
+    .ai-trigger {
+      padding: 5px 10px;
+      border: 1px solid var(--brand);
+      border-radius: 999px;
+      color: var(--brand);
+      background: var(--brand-soft);
+      font: inherit;
+      font-size: 11px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: background 150ms ease, color 150ms ease;
+    }
+
+    .ai-trigger:hover:not(:disabled) {
+      color: #fff;
+      background: var(--brand);
+    }
+
+    .ai-trigger:disabled {
+      cursor: progress;
+      opacity: 0.62;
+    }
+
+    .ai-panel {
+      margin-top: 14px;
+      padding: 14px 16px;
+      border: 1px solid rgb(23 63 95 / 20%);
+      border-left: 3px solid var(--brand);
+      border-radius: 10px;
+      background: linear-gradient(180deg, rgb(23 63 95 / 4%), rgb(23 63 95 / 1.5%));
+    }
+
+    .ai-panel[data-state="loading"] {
+      border-color: var(--line);
+      border-left-color: var(--line-strong);
+    }
+
+    .ai-panel[data-state="error"] {
+      border-color: rgb(200 56 50 / 28%);
+      border-left-color: var(--danger);
+      background: var(--danger-soft);
+    }
+
+    .ai-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .ai-badge {
+      padding: 3px 7px;
+      border-radius: 6px;
+      color: #fff;
+      background: var(--brand);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+    }
+
+    .ai-badge[data-source="local"] {
+      background: var(--caution);
+    }
+
+    .ai-meta {
+      color: var(--ink-muted);
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .ai-text {
+      color: var(--ink);
+      font-size: 13px;
+      line-height: 1.75;
+      white-space: pre-wrap;
+    }
+
+    .ai-foot {
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px dashed var(--line);
+      color: var(--ink-muted);
+      font-size: 11px;
+      line-height: 1.6;
+    }
+
+    .ai-note {
+      margin-top: 8px;
+      color: var(--caution);
+      font-size: 11px;
+      line-height: 1.6;
+    }
+
+    .ai-loading {
+      color: var(--ink-muted);
+      font-size: 12px;
+    }
+
+    .ai-error {
+      color: #922b26;
+      font-size: 12px;
+      line-height: 1.7;
+    }
+
     .local-status[data-status="handled"] {
       color: var(--success);
     }
@@ -748,6 +856,8 @@
       display: flex;
       flex: 0 0 auto;
       align-items: center;
+      justify-content: flex-end;
+      flex-wrap: wrap;
       gap: 9px;
     }
 
@@ -1868,6 +1978,12 @@
      */
     const TASK_API = query.get("tasksApi") || "/api/tasks";
     const WINDOW_API = query.get("windowsApi") || "/api/windows";
+    /*
+     * AI 核查说明 —— 全站唯一调用大模型的接口。
+     * 前端只传「涉及哪几个序号」，作业清单由后端查库组装后转给 AgentArts，
+     * 这样前端不必知道表结构，也保证模型拿到的输入与库里一致。
+     */
+    const AI_EXPLAIN_API = query.get("explainApi") || "/api/agent/explain";
     const STORAGE_KEY = "skylight-conflict-decisions-v1";
 
     /* 六类冲突的显示主题；真实判定由后端完成，这里只决定颜色和视觉样式。 */
@@ -1974,6 +2090,18 @@
       pending: "待确认",
       handled: "已处理",
       ignored: "已忽略"
+    };
+
+    /*
+     * 条文归因来源 —— AI 说明里最有信息量的一行。
+     * model：模型提案并通过白名单 + 类型两道校验
+     * mixed：部分通过，其余回退规则表
+     * rules：整条回退规则表（模型没给出可用提案，或运行时未启用模型）
+     */
+    const CLAUSE_SOURCE_LABELS = {
+      model: "条文归因：模型（已校验）",
+      mixed: "条文归因：模型 + 规则表",
+      rules: "条文归因：规则表"
     };
 
     /* =========================================================
@@ -2751,14 +2879,142 @@
       const statusTag = createElement("span", "status-tag", STATUS_LABELS[status]);
       statusTag.dataset.status = status;
       const footerActions = createElement("div", "card-footer-actions");
-      footerActions.append(
-        statusTag,
-        createElement("span", "card-jump", "去确认 →")
+
+      /* AI 核查说明：按钮自己吞掉点击事件 —— 卡片整体是「去确认台」的跳转热区，
+         不 stopPropagation 会连带跳页。
+         「配合缺失」这类冲突来自配合单、不挂具体作业序号，定位不到天窗，
+         按钮直接禁用并说明原因，不让人点了才看到报错。 */
+      const hasSerials = /\d/.test(conflict.involved);
+      const aiTrigger = createElement(
+        "button",
+        "ai-trigger",
+        hasSerials ? "AI 核查说明" : "AI 核查说明（无关联作业）"
       );
+      aiTrigger.type = "button";
+      aiTrigger.disabled = !hasSerials;
+      aiTrigger.title = hasSerials
+        ? "调用 AgentArts 智能体，生成带条文依据的核查说明"
+        : "这条冲突来自配合单，未关联具体作业序号，无法定位到天窗";
+      const aiPanel = createElement("div", "ai-panel");
+      aiPanel.hidden = true;
+      if (hasSerials) {
+        aiTrigger.addEventListener("click", event => {
+          event.stopPropagation();
+          requestExplain(conflict, aiPanel, aiTrigger);
+        });
+      }
+
+      footerActions.append(aiTrigger, statusTag,
+        createElement("span", "card-jump", "去确认 →"));
       footer.append(metaCluster, footerActions);
 
-      card.append(topline, description, suggestion, footer);
+      card.append(topline, description, suggestion, footer, aiPanel);
       return card;
+    }
+
+    /* =========================================================
+       AI 核查说明
+       这一块是产品里唯一会调用大模型的地方，边界写死在代码里：
+       模型只负责「怎么说」（措辞）和「依哪条」（归因提案），
+       判定结果与最终条文号都在后端确定性一侧，模型改不动。
+       ========================================================= */
+    async function requestExplain(conflict, panel, trigger) {
+      if (panel.dataset.state === "loading") return;
+
+      panel.hidden = false;
+      panel.dataset.state = "loading";
+      panel.replaceChildren(
+        createElement(
+          "p",
+          "ai-loading",
+          "正在调用智能体…首次调用需要唤醒运行时，可能要 10~30 秒。"
+        )
+      );
+      trigger.disabled = true;
+      trigger.textContent = "生成中…";
+
+      try {
+        const response = await fetch(AI_EXPLAIN_API, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            involved: conflict.involved,
+            type: conflict.type
+          })
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        renderExplain(panel, await response.json());
+      } catch (error) {
+        panel.dataset.state = "error";
+        panel.replaceChildren(
+          createElement(
+            "p",
+            "ai-error",
+            `智能体调用失败：${error.message}。判定结论不受影响，仍以上方的规则结果为准。`
+          )
+        );
+      } finally {
+        trigger.disabled = false;
+        trigger.textContent = "AI 核查说明";
+      }
+    }
+
+    function renderExplain(panel, data) {
+      if (!data || data.status !== "ok") {
+        panel.dataset.state = "error";
+        panel.replaceChildren(
+          createElement(
+            "p",
+            "ai-error",
+            `智能体未返回结果：${data?.note || data?.text || "原因未知"}`
+          )
+        );
+        return;
+      }
+
+      panel.dataset.state = "ok";
+
+      const head = createElement("div", "ai-head");
+      const badge = createElement("span", "ai-badge", "AI 生成");
+      badge.dataset.source = data.source === "cloud" ? "cloud" : "local";
+      head.append(badge);
+      head.append(
+        createElement(
+          "span",
+          "ai-meta",
+          `${data.source === "cloud" ? "AgentArts 云端" : "本地降级"} · ${
+            data.taskCount ?? "?"
+          } 条作业 · ${data.elapsedMs ?? "?"} ms`
+        )
+      );
+      const clauseSource = CLAUSE_SOURCE_LABELS[data.clauseSource];
+      if (clauseSource) {
+        head.append(createElement("span", "ai-meta", clauseSource));
+      }
+
+      const body = createElement("div", "ai-text");
+      body.textContent = data.text || "";
+
+      /*
+       * 这句话必须跟 clauseSource 对得上 —— 面板上写着「条文归因：模型」，
+       * 底部却写「模型只负责措辞」，就是自相矛盾。评审会盯这一行。
+       */
+      const guardNote =
+        data.clauseSource === "rules"
+          ? "判定结果与条文号均来自确定性内核，模型只负责措辞。"
+          : "判定结果来自确定性内核；条文由模型提案，须通过白名单与冲突类型两道校验，不通过即回退规则表。";
+      const foot = createElement(
+        "p",
+        "ai-foot",
+        data.clauseRefs?.length
+          ? `引用条文：${data.clauseRefs.join("、")}。${guardNote}`
+          : guardNote
+      );
+
+      panel.replaceChildren(head, body, foot);
+      if (data.note) {
+        panel.append(createElement("p", "ai-note", data.note));
+      }
     }
 
     /* =========================================================
