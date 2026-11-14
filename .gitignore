@@ -37,3 +37,19 @@ Thumbs.db
 # ========== 6. Maven/Gradle 本地缓存 ==========
 .mvn/
 .gradle/
+
+# ========== 7. AgentArts agent (secrets and artifacts) ==========
+.agentarts_config.yaml
+agentarts/.env
+agentarts/.env.local
+agentarts/backup-*.yaml
+__pycache__/
+*.pyc
+agentarts/invoke_*.json
+agentarts/invoke_result.txt
+agentarts/negotiate_cloud.json
+agentarts/negotiate_sample.json
+cp.txt
+# real operational data (names, phone numbers) must never be committed
+agentarts/eval/
+*.csv.private

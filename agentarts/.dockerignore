@@ -1,0 +1,9 @@
+# 不要把密钥、临时探针、缓存打进镜像
+.env
+.agentarts_config.yaml
+_probe_creds.py
+test_maas.py
+__pycache__/
+*.pyc
+*.md
+.git/
